@@ -1,0 +1,775 @@
+year,county_name,fips,population,county
+2011,Barbour County,54001,16600,Barbour
+2012,Barbour County,54001,16869,Barbour
+2013,Barbour County,54001,16871,Barbour
+2014,Barbour County,54001,16902,Barbour
+2016,"Barbour County, West Virginia",54001,16831,Barbour
+2017,"Barbour County, West Virginia",54001,16497,Barbour
+2018,"Barbour County, West Virginia",54001,16535,Barbour
+2019,"Barbour County, West Virginia",54001,16441,Barbour
+2020,"Barbour County, West Virginia",54001,15462,Barbour
+2021,"Barbour County, West Virginia",54001,15447,Barbour
+2022,"Barbour County, West Virginia",54001,15397,Barbour
+2023,"Barbour County, West Virginia",54001,15443,Barbour
+2024,"Barbour County, West Virginia",54001,15369,Barbour
+2015,"Barbour County, West Virginia, South Atlantic, South, United States",54001,16704,Barbour
+2011,Berkeley County,54003,105743,Berkeley
+2012,Berkeley County,54003,106965,Berkeley
+2013,Berkeley County,54003,108495,Berkeley
+2014,Berkeley County,54003,110191,Berkeley
+2016,"Berkeley County, West Virginia",54003,113525,Berkeley
+2017,"Berkeley County, West Virginia",54003,114920,Berkeley
+2018,"Berkeley County, West Virginia",54003,117123,Berkeley
+2019,"Berkeley County, West Virginia",54003,119171,Berkeley
+2020,"Berkeley County, West Virginia",54003,122699,Berkeley
+2021,"Berkeley County, West Virginia",54003,126194,Berkeley
+2022,"Berkeley County, West Virginia",54003,129538,Berkeley
+2023,"Berkeley County, West Virginia",54003,132851,Berkeley
+2024,"Berkeley County, West Virginia",54003,136287,Berkeley
+2015,"Berkeley County, West Virginia, South Atlantic, South, United States",54003,111901,Berkeley
+2011,Boone County,54005,24412,Boone
+2012,Boone County,54005,24358,Boone
+2013,Boone County,54005,24089,Boone
+2014,Boone County,54005,23716,Boone
+2016,"Boone County, West Virginia",54005,22816,Boone
+2017,"Boone County, West Virginia",54005,22349,Boone
+2018,"Boone County, West Virginia",54005,21951,Boone
+2019,"Boone County, West Virginia",54005,21457,Boone
+2020,"Boone County, West Virginia",54005,21746,Boone
+2021,"Boone County, West Virginia",54005,21361,Boone
+2022,"Boone County, West Virginia",54005,20925,Boone
+2023,"Boone County, West Virginia",54005,20600,Boone
+2024,"Boone County, West Virginia",54005,20496,Boone
+2015,"Boone County, West Virginia, South Atlantic, South, United States",54005,23372,Boone
+2011,Braxton County,54007,14535,Braxton
+2012,Braxton County,54007,14451,Braxton
+2013,Braxton County,54007,14385,Braxton
+2014,Braxton County,54007,14405,Braxton
+2016,"Braxton County, West Virginia",54007,14471,Braxton
+2017,"Braxton County, West Virginia",54007,14237,Braxton
+2018,"Braxton County, West Virginia",54007,14089,Braxton
+2019,"Braxton County, West Virginia",54007,13957,Braxton
+2020,"Braxton County, West Virginia",54007,12396,Braxton
+2021,"Braxton County, West Virginia",54007,12297,Braxton
+2022,"Braxton County, West Virginia",54007,12158,Braxton
+2023,"Braxton County, West Virginia",54007,12139,Braxton
+2024,"Braxton County, West Virginia",54007,12051,Braxton
+2015,"Braxton County, West Virginia, South Atlantic, South, United States",54007,14415,Braxton
+2011,Brooke County,54009,23814,Brooke
+2012,Brooke County,54009,23677,Brooke
+2013,Brooke County,54009,23589,Brooke
+2014,Brooke County,54009,23368,Brooke
+2016,"Brooke County, West Virginia",54009,22977,Brooke
+2017,"Brooke County, West Virginia",54009,22443,Brooke
+2018,"Brooke County, West Virginia",54009,22203,Brooke
+2019,"Brooke County, West Virginia",54009,21939,Brooke
+2020,"Brooke County, West Virginia",54009,22484,Brooke
+2021,"Brooke County, West Virginia",54009,22080,Brooke
+2022,"Brooke County, West Virginia",54009,21739,Brooke
+2023,"Brooke County, West Virginia",54009,21438,Brooke
+2024,"Brooke County, West Virginia",54009,21285,Brooke
+2015,"Brooke County, West Virginia, South Atlantic, South, United States",54009,23350,Brooke
+2011,Cabell County,54011,96612,Cabell
+2012,Cabell County,54011,96949,Cabell
+2013,Cabell County,54011,97026,Cabell
+2014,Cabell County,54011,96639,Cabell
+2016,"Cabell County, West Virginia",54011,95987,Cabell
+2017,"Cabell County, West Virginia",54011,94958,Cabell
+2018,"Cabell County, West Virginia",54011,93224,Cabell
+2019,"Cabell County, West Virginia",54011,91945,Cabell
+2020,"Cabell County, West Virginia",54011,94245,Cabell
+2021,"Cabell County, West Virginia",54011,93422,Cabell
+2022,"Cabell County, West Virginia",54011,92501,Cabell
+2023,"Cabell County, West Virginia",54011,92036,Cabell
+2024,"Cabell County, West Virginia",54011,91489,Cabell
+2015,"Cabell County, West Virginia, South Atlantic, South, United States",54011,96844,Cabell
+2011,Calhoun County,54013,7637,Calhoun
+2012,Calhoun County,54013,7594,Calhoun
+2013,Calhoun County,54013,7548,Calhoun
+2014,Calhoun County,54013,7557,Calhoun
+2016,"Calhoun County, West Virginia",54013,7336,Calhoun
+2017,"Calhoun County, West Virginia",54013,7307,Calhoun
+2018,"Calhoun County, West Virginia",54013,7254,Calhoun
+2019,"Calhoun County, West Virginia",54013,7109,Calhoun
+2020,"Calhoun County, West Virginia",54013,6196,Calhoun
+2021,"Calhoun County, West Virginia",54013,6172,Calhoun
+2022,"Calhoun County, West Virginia",54013,6056,Calhoun
+2023,"Calhoun County, West Virginia",54013,5945,Calhoun
+2024,"Calhoun County, West Virginia",54013,5873,Calhoun
+2015,"Calhoun County, West Virginia, South Atlantic, South, United States",54013,7470,Calhoun
+2011,Clay County,54015,9334,Clay
+2012,Clay County,54015,9208,Clay
+2013,Clay County,54015,9139,Clay
+2014,Clay County,54015,8881,Clay
+2016,"Clay County, West Virginia",54015,8859,Clay
+2017,"Clay County, West Virginia",54015,8764,Clay
+2018,"Clay County, West Virginia",54015,8632,Clay
+2019,"Clay County, West Virginia",54015,8508,Clay
+2020,"Clay County, West Virginia",54015,8013,Clay
+2021,"Clay County, West Virginia",54015,7914,Clay
+2022,"Clay County, West Virginia",54015,7819,Clay
+2023,"Clay County, West Virginia",54015,7740,Clay
+2024,"Clay County, West Virginia",54015,7689,Clay
+2015,"Clay County, West Virginia, South Atlantic, South, United States",54015,8910,Clay
+2011,Doddridge County,54017,8252,Doddridge
+2012,Doddridge County,54017,8296,Doddridge
+2013,Doddridge County,54017,8549,Doddridge
+2014,Doddridge County,54017,8471,Doddridge
+2016,"Doddridge County, West Virginia",54017,8413,Doddridge
+2017,"Doddridge County, West Virginia",54017,8560,Doddridge
+2018,"Doddridge County, West Virginia",54017,8406,Doddridge
+2019,"Doddridge County, West Virginia",54017,8448,Doddridge
+2020,"Doddridge County, West Virginia",54017,7790,Doddridge
+2021,"Doddridge County, West Virginia",54017,7745,Doddridge
+2022,"Doddridge County, West Virginia",54017,7719,Doddridge
+2023,"Doddridge County, West Virginia",54017,7685,Doddridge
+2024,"Doddridge County, West Virginia",54017,7615,Doddridge
+2015,"Doddridge County, West Virginia, South Atlantic, South, United States",54017,8176,Doddridge
+2011,Fayette County,54019,45921,Fayette
+2012,Fayette County,54019,45861,Fayette
+2013,Fayette County,54019,45557,Fayette
+2014,Fayette County,54019,45159,Fayette
+2016,"Fayette County, West Virginia",54019,44323,Fayette
+2017,"Fayette County, West Virginia",54019,43521,Fayette
+2018,"Fayette County, West Virginia",54019,43018,Fayette
+2019,"Fayette County, West Virginia",54019,42406,Fayette
+2020,"Fayette County, West Virginia",54019,40445,Fayette
+2021,"Fayette County, West Virginia",54019,40059,Fayette
+2022,"Fayette County, West Virginia",54019,39411,Fayette
+2023,"Fayette County, West Virginia",54019,39079,Fayette
+2024,"Fayette County, West Virginia",54019,38600,Fayette
+2015,"Fayette County, West Virginia, South Atlantic, South, United States",54019,44997,Fayette
+2011,Gilmer County,54021,8751,Gilmer
+2012,Gilmer County,54021,8748,Gilmer
+2013,Gilmer County,54021,8622,Gilmer
+2014,Gilmer County,54021,8498,Gilmer
+2016,"Gilmer County, West Virginia",54021,8249,Gilmer
+2017,"Gilmer County, West Virginia",54021,8005,Gilmer
+2018,"Gilmer County, West Virginia",54021,8026,Gilmer
+2019,"Gilmer County, West Virginia",54021,7823,Gilmer
+2020,"Gilmer County, West Virginia",54021,7399,Gilmer
+2021,"Gilmer County, West Virginia",54021,7396,Gilmer
+2022,"Gilmer County, West Virginia",54021,7309,Gilmer
+2023,"Gilmer County, West Virginia",54021,7221,Gilmer
+2024,"Gilmer County, West Virginia",54021,7116,Gilmer
+2015,"Gilmer County, West Virginia, South Atlantic, South, United States",54021,8518,Gilmer
+2011,Grant County,54023,11883,Grant
+2012,Grant County,54023,11802,Grant
+2013,Grant County,54023,11740,Grant
+2014,Grant County,54023,11617,Grant
+2016,"Grant County, West Virginia",54023,11732,Grant
+2017,"Grant County, West Virginia",54023,11670,Grant
+2018,"Grant County, West Virginia",54023,11626,Grant
+2019,"Grant County, West Virginia",54023,11568,Grant
+2020,"Grant County, West Virginia",54023,10995,Grant
+2021,"Grant County, West Virginia",54023,10998,Grant
+2022,"Grant County, West Virginia",54023,10965,Grant
+2023,"Grant County, West Virginia",54023,10985,Grant
+2024,"Grant County, West Virginia",54023,10971,Grant
+2015,"Grant County, West Virginia, South Atlantic, South, United States",54023,11766,Grant
+2011,Greenbrier County,54025,35732,Greenbrier
+2012,Greenbrier County,54025,35877,Greenbrier
+2013,Greenbrier County,54025,35798,Greenbrier
+2014,Greenbrier County,54025,35579,Greenbrier
+2016,"Greenbrier County, West Virginia",54025,35279,Greenbrier
+2017,"Greenbrier County, West Virginia",54025,35287,Greenbrier
+2018,"Greenbrier County, West Virginia",54025,34786,Greenbrier
+2019,"Greenbrier County, West Virginia",54025,34662,Greenbrier
+2020,"Greenbrier County, West Virginia",54025,32903,Greenbrier
+2021,"Greenbrier County, West Virginia",54025,32705,Greenbrier
+2022,"Greenbrier County, West Virginia",54025,32348,Greenbrier
+2023,"Greenbrier County, West Virginia",54025,32123,Greenbrier
+2024,"Greenbrier County, West Virginia",54025,31851,Greenbrier
+2015,"Greenbrier County, West Virginia, South Atlantic, South, United States",54025,35516,Greenbrier
+2011,Hampshire County,54027,23782,Hampshire
+2012,Hampshire County,54027,23673,Hampshire
+2013,Hampshire County,54027,23483,Hampshire
+2014,Hampshire County,54027,23430,Hampshire
+2016,"Hampshire County, West Virginia",54027,23301,Hampshire
+2017,"Hampshire County, West Virginia",54027,23471,Hampshire
+2018,"Hampshire County, West Virginia",54027,23347,Hampshire
+2019,"Hampshire County, West Virginia",54027,23175,Hampshire
+2020,"Hampshire County, West Virginia",54027,23085,Hampshire
+2021,"Hampshire County, West Virginia",54027,23351,Hampshire
+2022,"Hampshire County, West Virginia",54027,23464,Hampshire
+2023,"Hampshire County, West Virginia",54027,23632,Hampshire
+2024,"Hampshire County, West Virginia",54027,23793,Hampshire
+2015,"Hampshire County, West Virginia, South Atlantic, South, United States",54027,23353,Hampshire
+2011,Hancock County,54029,30633,Hancock
+2012,Hancock County,54029,30465,Hancock
+2013,Hancock County,54029,30382,Hancock
+2014,Hancock County,54029,30263,Hancock
+2016,"Hancock County, West Virginia",54029,29590,Hancock
+2017,"Hancock County, West Virginia",54029,29448,Hancock
+2018,"Hancock County, West Virginia",54029,29094,Hancock
+2019,"Hancock County, West Virginia",54029,28810,Hancock
+2020,"Hancock County, West Virginia",54029,29043,Hancock
+2021,"Hancock County, West Virginia",54029,28604,Hancock
+2022,"Hancock County, West Virginia",54029,28265,Hancock
+2023,"Hancock County, West Virginia",54029,28191,Hancock
+2024,"Hancock County, West Virginia",54029,28054,Hancock
+2015,"Hancock County, West Virginia, South Atlantic, South, United States",54029,29815,Hancock
+2011,Hardy County,54031,13962,Hardy
+2012,Hardy County,54031,13849,Hardy
+2013,Hardy County,54031,13968,Hardy
+2014,Hardy County,54031,13956,Hardy
+2016,"Hardy County, West Virginia",54031,13889,Hardy
+2017,"Hardy County, West Virginia",54031,13717,Hardy
+2018,"Hardy County, West Virginia",54031,13775,Hardy
+2019,"Hardy County, West Virginia",54031,13776,Hardy
+2020,"Hardy County, West Virginia",54031,14241,Hardy
+2021,"Hardy County, West Virginia",54031,14150,Hardy
+2022,"Hardy County, West Virginia",54031,14196,Hardy
+2023,"Hardy County, West Virginia",54031,14293,Hardy
+2024,"Hardy County, West Virginia",54031,14335,Hardy
+2015,"Hardy County, West Virginia, South Atlantic, South, United States",54031,13852,Hardy
+2011,Harrison County,54033,69302,Harrison
+2012,Harrison County,54033,69098,Harrison
+2013,Harrison County,54033,68907,Harrison
+2014,Harrison County,54033,68670,Harrison
+2016,"Harrison County, West Virginia",54033,68400,Harrison
+2017,"Harrison County, West Virginia",54033,67811,Harrison
+2018,"Harrison County, West Virginia",54033,67554,Harrison
+2019,"Harrison County, West Virginia",54033,67256,Harrison
+2020,"Harrison County, West Virginia",54033,65842,Harrison
+2021,"Harrison County, West Virginia",54033,65412,Harrison
+2022,"Harrison County, West Virginia",54033,64683,Harrison
+2023,"Harrison County, West Virginia",54033,64513,Harrison
+2024,"Harrison County, West Virginia",54033,64472,Harrison
+2015,"Harrison County, West Virginia, South Atlantic, South, United States",54033,68714,Harrison
+2011,Jackson County,54035,29321,Jackson
+2012,Jackson County,54035,29283,Jackson
+2013,Jackson County,54035,29193,Jackson
+2014,Jackson County,54035,29134,Jackson
+2016,"Jackson County, West Virginia",54035,29152,Jackson
+2017,"Jackson County, West Virginia",54035,28976,Jackson
+2018,"Jackson County, West Virginia",54035,28706,Jackson
+2019,"Jackson County, West Virginia",54035,28576,Jackson
+2020,"Jackson County, West Virginia",54035,27726,Jackson
+2021,"Jackson County, West Virginia",54035,27789,Jackson
+2022,"Jackson County, West Virginia",54035,27624,Jackson
+2023,"Jackson County, West Virginia",54035,27668,Jackson
+2024,"Jackson County, West Virginia",54035,27718,Jackson
+2015,"Jackson County, West Virginia, South Atlantic, South, United States",54035,29237,Jackson
+2011,Jefferson County,54037,54458,Jefferson
+2012,Jefferson County,54037,54699,Jefferson
+2013,Jefferson County,54037,55001,Jefferson
+2014,Jefferson County,54037,55625,Jefferson
+2016,"Jefferson County, West Virginia",54037,56368,Jefferson
+2017,"Jefferson County, West Virginia",54037,56338,Jefferson
+2018,"Jefferson County, West Virginia",54037,56811,Jefferson
+2019,"Jefferson County, West Virginia",54037,57146,Jefferson
+2020,"Jefferson County, West Virginia",54037,57785,Jefferson
+2021,"Jefferson County, West Virginia",54037,58550,Jefferson
+2022,"Jefferson County, West Virginia",54037,58957,Jefferson
+2023,"Jefferson County, West Virginia",54037,59744,Jefferson
+2024,"Jefferson County, West Virginia",54037,61264,Jefferson
+2015,"Jefferson County, West Virginia, South Atlantic, South, United States",54037,56482,Jefferson
+2011,Kanawha County,54039,192183,Kanawha
+2012,Kanawha County,54039,192248,Kanawha
+2013,Kanawha County,54039,191539,Kanawha
+2014,Kanawha County,54039,190355,Kanawha
+2016,"Kanawha County, West Virginia",54039,186241,Kanawha
+2017,"Kanawha County, West Virginia",54039,183293,Kanawha
+2018,"Kanawha County, West Virginia",54039,180454,Kanawha
+2019,"Kanawha County, West Virginia",54039,178124,Kanawha
+2020,"Kanawha County, West Virginia",54039,180208,Kanawha
+2021,"Kanawha County, West Virginia",54039,178071,Kanawha
+2022,"Kanawha County, West Virginia",54039,175899,Kanawha
+2023,"Kanawha County, West Virginia",54039,174602,Kanawha
+2024,"Kanawha County, West Virginia",54039,173906,Kanawha
+2015,"Kanawha County, West Virginia, South Atlantic, South, United States",54039,188332,Kanawha
+2011,Lewis County,54041,16439,Lewis
+2012,Lewis County,54041,16453,Lewis
+2013,Lewis County,54041,16480,Lewis
+2014,Lewis County,54041,16448,Lewis
+2016,"Lewis County, West Virginia",54041,16309,Lewis
+2017,"Lewis County, West Virginia",54041,16226,Lewis
+2018,"Lewis County, West Virginia",54041,16024,Lewis
+2019,"Lewis County, West Virginia",54041,15907,Lewis
+2020,"Lewis County, West Virginia",54041,17020,Lewis
+2021,"Lewis County, West Virginia",54041,16877,Lewis
+2022,"Lewis County, West Virginia",54041,16719,Lewis
+2023,"Lewis County, West Virginia",54041,16605,Lewis
+2024,"Lewis County, West Virginia",54041,16477,Lewis
+2015,"Lewis County, West Virginia, South Atlantic, South, United States",54041,16448,Lewis
+2011,Lincoln County,54043,21567,Lincoln
+2012,Lincoln County,54043,21607,Lincoln
+2013,Lincoln County,54043,21452,Lincoln
+2014,Lincoln County,54043,21520,Lincoln
+2016,"Lincoln County, West Virginia",54043,21232,Lincoln
+2017,"Lincoln County, West Virginia",54043,20825,Lincoln
+2018,"Lincoln County, West Virginia",54043,20599,Lincoln
+2019,"Lincoln County, West Virginia",54043,20409,Lincoln
+2020,"Lincoln County, West Virginia",54043,20368,Lincoln
+2021,"Lincoln County, West Virginia",54043,20197,Lincoln
+2022,"Lincoln County, West Virginia",54043,19862,Lincoln
+2023,"Lincoln County, West Virginia",54043,19699,Lincoln
+2024,"Lincoln County, West Virginia",54043,19377,Lincoln
+2015,"Lincoln County, West Virginia, South Atlantic, South, United States",54043,21415,Lincoln
+2011,Logan County,54045,36461,Logan
+2012,Logan County,54045,36316,Logan
+2013,Logan County,54045,35933,Logan
+2014,Logan County,54045,35251,Logan
+2016,"Logan County, West Virginia",54045,33700,Logan
+2017,"Logan County, West Virginia",54045,32925,Logan
+2018,"Logan County, West Virginia",54045,32607,Logan
+2019,"Logan County, West Virginia",54045,32019,Logan
+2020,"Logan County, West Virginia",54045,32516,Logan
+2021,"Logan County, West Virginia",54045,31852,Logan
+2022,"Logan County, West Virginia",54045,31251,Logan
+2023,"Logan County, West Virginia",54045,30910,Logan
+2024,"Logan County, West Virginia",54045,30560,Logan
+2015,"Logan County, West Virginia, South Atlantic, South, United States",54045,34707,Logan
+2011,Marion County,54049,56692,Marion
+2012,Marion County,54049,56760,Marion
+2013,Marion County,54049,56723,Marion
+2014,Marion County,54049,56792,Marion
+2016,"Marion County, West Virginia",54049,56538,Marion
+2017,"Marion County, West Virginia",54049,56337,Marion
+2018,"Marion County, West Virginia",54049,56097,Marion
+2019,"Marion County, West Virginia",54049,56072,Marion
+2020,"Marion County, West Virginia",54049,56234,Marion
+2021,"Marion County, West Virginia",54049,56056,Marion
+2022,"Marion County, West Virginia",54049,55799,Marion
+2023,"Marion County, West Virginia",54049,55805,Marion
+2024,"Marion County, West Virginia",54049,55649,Marion
+2015,"Marion County, West Virginia, South Atlantic, South, United States",54049,56925,Marion
+2011,Marshall County,54051,32936,Marshall
+2012,Marshall County,54051,32826,Marshall
+2013,Marshall County,54051,32643,Marshall
+2014,Marshall County,54051,32360,Marshall
+2016,"Marshall County, West Virginia",54051,31793,Marshall
+2017,"Marshall County, West Virginia",54051,31190,Marshall
+2018,"Marshall County, West Virginia",54051,30785,Marshall
+2019,"Marshall County, West Virginia",54051,30531,Marshall
+2020,"Marshall County, West Virginia",54051,30529,Marshall
+2021,"Marshall County, West Virginia",54051,30204,Marshall
+2022,"Marshall County, West Virginia",54051,29722,Marshall
+2023,"Marshall County, West Virginia",54051,29517,Marshall
+2024,"Marshall County, West Virginia",54051,29354,Marshall
+2015,"Marshall County, West Virginia, South Atlantic, South, United States",54051,31978,Marshall
+2011,Mason County,54053,27316,Mason
+2012,Mason County,54053,27217,Mason
+2013,Mason County,54053,27144,Mason
+2014,Mason County,54053,27153,Mason
+2016,"Mason County, West Virginia",54053,26825,Mason
+2017,"Mason County, West Virginia",54053,26801,Mason
+2018,"Mason County, West Virginia",54053,26718,Mason
+2019,"Mason County, West Virginia",54053,26516,Mason
+2020,"Mason County, West Virginia",54053,25413,Mason
+2021,"Mason County, West Virginia",54053,25281,Mason
+2022,"Mason County, West Virginia",54053,24938,Mason
+2023,"Mason County, West Virginia",54053,24815,Mason
+2024,"Mason County, West Virginia",54053,24770,Mason
+2015,"Mason County, West Virginia, South Atlantic, South, United States",54053,27037,Mason
+2011,McDowell County,54047,21730,McDowell
+2012,McDowell County,54047,21318,McDowell
+2013,McDowell County,54047,20958,McDowell
+2014,McDowell County,54047,20385,McDowell
+2016,"McDowell County, West Virginia",54047,19141,McDowell
+2017,"McDowell County, West Virginia",54047,18456,McDowell
+2018,"McDowell County, West Virginia",54047,18223,McDowell
+2019,"McDowell County, West Virginia",54047,17624,McDowell
+2020,"McDowell County, West Virginia",54047,18939,McDowell
+2021,"McDowell County, West Virginia",54047,18415,McDowell
+2022,"McDowell County, West Virginia",54047,17790,McDowell
+2023,"McDowell County, West Virginia",54047,17425,McDowell
+2024,"McDowell County, West Virginia",54047,17147,McDowell
+2015,"McDowell County, West Virginia, South Atlantic, South, United States",54047,19835,McDowell
+2011,Mercer County,54055,62560,Mercer
+2012,Mercer County,54055,62419,Mercer
+2013,Mercer County,54055,61911,Mercer
+2014,Mercer County,54055,61759,Mercer
+2016,"Mercer County, West Virginia",54055,60468,Mercer
+2017,"Mercer County, West Virginia",54055,59753,Mercer
+2018,"Mercer County, West Virginia",54055,59131,Mercer
+2019,"Mercer County, West Virginia",54055,58758,Mercer
+2020,"Mercer County, West Virginia",54055,59519,Mercer
+2021,"Mercer County, West Virginia",54055,59163,Mercer
+2022,"Mercer County, West Virginia",54055,58599,Mercer
+2023,"Mercer County, West Virginia",54055,58008,Mercer
+2024,"Mercer County, West Virginia",54055,57524,Mercer
+2015,"Mercer County, West Virginia, South Atlantic, South, United States",54055,61164,Mercer
+2011,Mineral County,54057,28057,Mineral
+2012,Mineral County,54057,27886,Mineral
+2013,Mineral County,54057,27691,Mineral
+2014,Mineral County,54057,27567,Mineral
+2016,"Mineral County, West Virginia",54057,27411,Mineral
+2017,"Mineral County, West Virginia",54057,27222,Mineral
+2018,"Mineral County, West Virginia",54057,26940,Mineral
+2019,"Mineral County, West Virginia",54057,26868,Mineral
+2020,"Mineral County, West Virginia",54057,26901,Mineral
+2021,"Mineral County, West Virginia",54057,26913,Mineral
+2022,"Mineral County, West Virginia",54057,26872,Mineral
+2023,"Mineral County, West Virginia",54057,26806,Mineral
+2024,"Mineral County, West Virginia",54057,26778,Mineral
+2015,"Mineral County, West Virginia, South Atlantic, South, United States",54057,27451,Mineral
+2011,Mingo County,54059,26603,Mingo
+2012,Mingo County,54059,26190,Mingo
+2013,Mingo County,54059,26013,Mingo
+2014,Mingo County,54059,25739,Mingo
+2016,"Mingo County, West Virginia",54059,24647,Mingo
+2017,"Mingo County, West Virginia",54059,24127,Mingo
+2018,"Mingo County, West Virginia",54059,23785,Mingo
+2019,"Mingo County, West Virginia",54059,23424,Mingo
+2020,"Mingo County, West Virginia",54059,23487,Mingo
+2021,"Mingo County, West Virginia",54059,23055,Mingo
+2022,"Mingo County, West Virginia",54059,22427,Mingo
+2023,"Mingo County, West Virginia",54059,22025,Mingo
+2024,"Mingo County, West Virginia",54059,21712,Mingo
+2015,"Mingo County, West Virginia, South Atlantic, South, United States",54059,25292,Mingo
+2011,Monongalia County,54061,99018,Monongalia
+2012,Monongalia County,54061,100915,Monongalia
+2013,Monongalia County,54061,102266,Monongalia
+2014,Monongalia County,54061,103480,Monongalia
+2016,"Monongalia County, West Virginia",54061,104622,Monongalia
+2017,"Monongalia County, West Virginia",54061,105030,Monongalia
+2018,"Monongalia County, West Virginia",54061,106420,Monongalia
+2019,"Monongalia County, West Virginia",54061,105612,Monongalia
+2020,"Monongalia County, West Virginia",54061,105912,Monongalia
+2021,"Monongalia County, West Virginia",54061,106537,Monongalia
+2022,"Monongalia County, West Virginia",54061,106921,Monongalia
+2023,"Monongalia County, West Virginia",54061,107749,Monongalia
+2024,"Monongalia County, West Virginia",54061,108697,Monongalia
+2015,"Monongalia County, West Virginia, South Atlantic, South, United States",54061,104236,Monongalia
+2011,Monroe County,54063,13551,Monroe
+2012,Monroe County,54063,13502,Monroe
+2013,Monroe County,54063,13520,Monroe
+2014,Monroe County,54063,13613,Monroe
+2016,"Monroe County, West Virginia",54063,13370,Monroe
+2017,"Monroe County, West Virginia",54063,13402,Monroe
+2018,"Monroe County, West Virginia",54063,13280,Monroe
+2019,"Monroe County, West Virginia",54063,13275,Monroe
+2020,"Monroe County, West Virginia",54063,12386,Monroe
+2021,"Monroe County, West Virginia",54063,12394,Monroe
+2022,"Monroe County, West Virginia",54063,12314,Monroe
+2023,"Monroe County, West Virginia",54063,12376,Monroe
+2024,"Monroe County, West Virginia",54063,12462,Monroe
+2015,"Monroe County, West Virginia, South Atlantic, South, United States",54063,13506,Monroe
+2011,Morgan County,54065,17464,Morgan
+2012,Morgan County,54065,17427,Morgan
+2013,Morgan County,54065,17445,Morgan
+2014,Morgan County,54065,17516,Morgan
+2016,"Morgan County, West Virginia",54065,17632,Morgan
+2017,"Morgan County, West Virginia",54065,17686,Morgan
+2018,"Morgan County, West Virginia",54065,17787,Morgan
+2019,"Morgan County, West Virginia",54065,17884,Morgan
+2020,"Morgan County, West Virginia",54065,17087,Morgan
+2021,"Morgan County, West Virginia",54065,17304,Morgan
+2022,"Morgan County, West Virginia",54065,17380,Morgan
+2023,"Morgan County, West Virginia",54065,17580,Morgan
+2024,"Morgan County, West Virginia",54065,17780,Morgan
+2015,"Morgan County, West Virginia, South Atlantic, South, United States",54065,17524,Morgan
+2011,Nicholas County,54067,26216,Nicholas
+2012,Nicholas County,54067,26262,Nicholas
+2013,Nicholas County,54067,25948,Nicholas
+2014,Nicholas County,54067,25719,Nicholas
+2016,"Nicholas County, West Virginia",54067,25311,Nicholas
+2017,"Nicholas County, West Virginia",54067,25043,Nicholas
+2018,"Nicholas County, West Virginia",54067,24842,Nicholas
+2019,"Nicholas County, West Virginia",54067,24496,Nicholas
+2020,"Nicholas County, West Virginia",54067,24562,Nicholas
+2021,"Nicholas County, West Virginia",54067,24438,Nicholas
+2022,"Nicholas County, West Virginia",54067,24266,Nicholas
+2023,"Nicholas County, West Virginia",54067,24104,Nicholas
+2024,"Nicholas County, West Virginia",54067,24017,Nicholas
+2015,"Nicholas County, West Virginia, South Atlantic, South, United States",54067,25594,Nicholas
+2011,Ohio County,54069,44202,Ohio
+2012,Ohio County,54069,43992,Ohio
+2013,Ohio County,54069,43732,Ohio
+2014,Ohio County,54069,43241,Ohio
+2016,"Ohio County, West Virginia",54069,42516,Ohio
+2017,"Ohio County, West Virginia",54069,42035,Ohio
+2018,"Ohio County, West Virginia",54069,41755,Ohio
+2019,"Ohio County, West Virginia",54069,41411,Ohio
+2020,"Ohio County, West Virginia",54069,42307,Ohio
+2021,"Ohio County, West Virginia",54069,41817,Ohio
+2022,"Ohio County, West Virginia",54069,41473,Ohio
+2023,"Ohio County, West Virginia",54069,41221,Ohio
+2024,"Ohio County, West Virginia",54069,41090,Ohio
+2015,"Ohio County, West Virginia, South Atlantic, South, United States",54069,43066,Ohio
+2011,Pendleton County,54071,7537,Pendleton
+2012,Pendleton County,54071,7470,Pendleton
+2013,Pendleton County,54071,7375,Pendleton
+2014,Pendleton County,54071,7229,Pendleton
+2016,"Pendleton County, West Virginia",54071,7051,Pendleton
+2017,"Pendleton County, West Virginia",54071,6996,Pendleton
+2018,"Pendleton County, West Virginia",54071,6997,Pendleton
+2019,"Pendleton County, West Virginia",54071,6969,Pendleton
+2020,"Pendleton County, West Virginia",54071,6129,Pendleton
+2021,"Pendleton County, West Virginia",54071,6093,Pendleton
+2022,"Pendleton County, West Virginia",54071,6051,Pendleton
+2023,"Pendleton County, West Virginia",54071,5998,Pendleton
+2024,"Pendleton County, West Virginia",54071,5944,Pendleton
+2015,"Pendleton County, West Virginia, South Atlantic, South, United States",54071,7229,Pendleton
+2011,Pleasants County,54073,7575,Pleasants
+2012,Pleasants County,54073,7533,Pleasants
+2013,Pleasants County,54073,7518,Pleasants
+2014,Pleasants County,54073,7588,Pleasants
+2016,"Pleasants County, West Virginia",54073,7591,Pleasants
+2017,"Pleasants County, West Virginia",54073,7512,Pleasants
+2018,"Pleasants County, West Virginia",54073,7507,Pleasants
+2019,"Pleasants County, West Virginia",54073,7460,Pleasants
+2020,"Pleasants County, West Virginia",54073,7653,Pleasants
+2021,"Pleasants County, West Virginia",54073,7610,Pleasants
+2022,"Pleasants County, West Virginia",54073,7564,Pleasants
+2023,"Pleasants County, West Virginia",54073,7420,Pleasants
+2024,"Pleasants County, West Virginia",54073,7358,Pleasants
+2015,"Pleasants County, West Virginia, South Atlantic, South, United States",54073,7674,Pleasants
+2011,Pocahontas County,54075,8825,Pocahontas
+2012,Pocahontas County,54075,8703,Pocahontas
+2013,Pocahontas County,54075,8680,Pocahontas
+2014,Pocahontas County,54075,8651,Pocahontas
+2016,"Pocahontas County, West Virginia",54075,8501,Pocahontas
+2017,"Pocahontas County, West Virginia",54075,8456,Pocahontas
+2018,"Pocahontas County, West Virginia",54075,8414,Pocahontas
+2019,"Pocahontas County, West Virginia",54075,8247,Pocahontas
+2020,"Pocahontas County, West Virginia",54075,7864,Pocahontas
+2021,"Pocahontas County, West Virginia",54075,7888,Pocahontas
+2022,"Pocahontas County, West Virginia",54075,7776,Pocahontas
+2023,"Pocahontas County, West Virginia",54075,7739,Pocahontas
+2024,"Pocahontas County, West Virginia",54075,7653,Pocahontas
+2015,"Pocahontas County, West Virginia, South Atlantic, South, United States",54075,8607,Pocahontas
+2011,Preston County,54077,33660,Preston
+2012,Preston County,54077,33898,Preston
+2013,Preston County,54077,33682,Preston
+2014,Preston County,54077,33916,Preston
+2016,"Preston County, West Virginia",54077,33758,Preston
+2017,"Preston County, West Virginia",54077,33679,Preston
+2018,"Preston County, West Virginia",54077,33839,Preston
+2019,"Preston County, West Virginia",54077,33432,Preston
+2020,"Preston County, West Virginia",54077,34191,Preston
+2021,"Preston County, West Virginia",54077,34309,Preston
+2022,"Preston County, West Virginia",54077,34196,Preston
+2023,"Preston County, West Virginia",54077,34050,Preston
+2024,"Preston County, West Virginia",54077,34055,Preston
+2015,"Preston County, West Virginia, South Atlantic, South, United States",54077,33940,Preston
+2011,Putnam County,54079,56030,Putnam
+2012,Putnam County,54079,56445,Putnam
+2013,Putnam County,54079,56492,Putnam
+2014,Putnam County,54079,56625,Putnam
+2016,"Putnam County, West Virginia",54079,56941,Putnam
+2017,"Putnam County, West Virginia",54079,56792,Putnam
+2018,"Putnam County, West Virginia",54079,56682,Putnam
+2019,"Putnam County, West Virginia",54079,56450,Putnam
+2020,"Putnam County, West Virginia",54079,57443,Putnam
+2021,"Putnam County, West Virginia",54079,57365,Putnam
+2022,"Putnam County, West Virginia",54079,57070,Putnam
+2023,"Putnam County, West Virginia",54079,56942,Putnam
+2024,"Putnam County, West Virginia",54079,57067,Putnam
+2015,"Putnam County, West Virginia, South Atlantic, South, United States",54079,56848,Putnam
+2011,Raleigh County,54081,79345,Raleigh
+2012,Raleigh County,54081,79249,Raleigh
+2013,Raleigh County,54081,78799,Raleigh
+2014,Raleigh County,54081,78183,Raleigh
+2016,"Raleigh County, West Virginia",54081,76601,Raleigh
+2017,"Raleigh County, West Virginia",54081,75022,Raleigh
+2018,"Raleigh County, West Virginia",54081,74254,Raleigh
+2019,"Raleigh County, West Virginia",54081,73361,Raleigh
+2020,"Raleigh County, West Virginia",54081,74407,Raleigh
+2021,"Raleigh County, West Virginia",54081,73800,Raleigh
+2022,"Raleigh County, West Virginia",54081,72863,Raleigh
+2023,"Raleigh County, West Virginia",54081,72526,Raleigh
+2024,"Raleigh County, West Virginia",54081,72379,Raleigh
+2015,"Raleigh County, West Virginia, South Atlantic, South, United States",54081,77510,Raleigh
+2011,Randolph County,54083,29435,Randolph
+2012,Randolph County,54083,29392,Randolph
+2013,Randolph County,54083,29522,Randolph
+2014,Randolph County,54083,29377,Randolph
+2016,"Randolph County, West Virginia",54083,29006,Randolph
+2017,"Randolph County, West Virginia",54083,28785,Randolph
+2018,"Randolph County, West Virginia",54083,28823,Randolph
+2019,"Randolph County, West Virginia",54083,28695,Randolph
+2020,"Randolph County, West Virginia",54083,27892,Randolph
+2021,"Randolph County, West Virginia",54083,27902,Randolph
+2022,"Randolph County, West Virginia",54083,27539,Randolph
+2023,"Randolph County, West Virginia",54083,27359,Randolph
+2024,"Randolph County, West Virginia",54083,27190,Randolph
+2015,"Randolph County, West Virginia, South Atlantic, South, United States",54083,29126,Randolph
+2011,Ritchie County,54085,10313,Ritchie
+2012,Ritchie County,54085,10250,Ritchie
+2013,Ritchie County,54085,10147,Ritchie
+2014,Ritchie County,54085,10077,Ritchie
+2016,"Ritchie County, West Virginia",54085,9875,Ritchie
+2017,"Ritchie County, West Virginia",54085,9774,Ritchie
+2018,"Ritchie County, West Virginia",54085,9721,Ritchie
+2019,"Ritchie County, West Virginia",54085,9554,Ritchie
+2020,"Ritchie County, West Virginia",54085,8422,Ritchie
+2021,"Ritchie County, West Virginia",54085,8413,Ritchie
+2022,"Ritchie County, West Virginia",54085,8239,Ritchie
+2023,"Ritchie County, West Virginia",54085,8187,Ritchie
+2024,"Ritchie County, West Virginia",54085,8170,Ritchie
+2015,"Ritchie County, West Virginia, South Atlantic, South, United States",54085,9982,Ritchie
+2011,Roane County,54087,14801,Roane
+2012,Roane County,54087,14679,Roane
+2013,Roane County,54087,14607,Roane
+2014,Roane County,54087,14595,Roane
+2016,"Roane County, West Virginia",54087,14208,Roane
+2017,"Roane County, West Virginia",54087,14043,Roane
+2018,"Roane County, West Virginia",54087,13932,Roane
+2019,"Roane County, West Virginia",54087,13688,Roane
+2020,"Roane County, West Virginia",54087,13984,Roane
+2021,"Roane County, West Virginia",54087,13933,Roane
+2022,"Roane County, West Virginia",54087,13794,Roane
+2023,"Roane County, West Virginia",54087,13678,Roane
+2024,"Roane County, West Virginia",54087,13540,Roane
+2015,"Roane County, West Virginia, South Atlantic, South, United States",54087,14435,Roane
+2011,Summers County,54089,13857,Summers
+2012,Summers County,54089,13836,Summers
+2013,Summers County,54089,13589,Summers
+2014,Summers County,54089,13329,Summers
+2016,"Summers County, West Virginia",54089,12872,Summers
+2017,"Summers County, West Virginia",54089,12993,Summers
+2018,"Summers County, West Virginia",54089,12760,Summers
+2019,"Summers County, West Virginia",54089,12573,Summers
+2020,"Summers County, West Virginia",54089,11940,Summers
+2021,"Summers County, West Virginia",54089,11869,Summers
+2022,"Summers County, West Virginia",54089,11711,Summers
+2023,"Summers County, West Virginia",54089,11581,Summers
+2024,"Summers County, West Virginia",54089,11544,Summers
+2015,"Summers County, West Virginia, South Atlantic, South, United States",54089,13239,Summers
+2011,Taylor County,54091,16934,Taylor
+2012,Taylor County,54091,16973,Taylor
+2013,Taylor County,54091,16990,Taylor
+2014,Taylor County,54091,17102,Taylor
+2016,"Taylor County, West Virginia",54091,16859,Taylor
+2017,"Taylor County, West Virginia",54091,16930,Taylor
+2018,"Taylor County, West Virginia",54091,16862,Taylor
+2019,"Taylor County, West Virginia",54091,16695,Taylor
+2020,"Taylor County, West Virginia",54091,16693,Taylor
+2021,"Taylor County, West Virginia",54091,16534,Taylor
+2022,"Taylor County, West Virginia",54091,16386,Taylor
+2023,"Taylor County, West Virginia",54091,16385,Taylor
+2024,"Taylor County, West Virginia",54091,16438,Taylor
+2015,"Taylor County, West Virginia, South Atlantic, South, United States",54091,16912,Taylor
+2011,Tucker County,54093,7130,Tucker
+2012,Tucker County,54093,7078,Tucker
+2013,Tucker County,54093,7080,Tucker
+2014,Tucker County,54093,7052,Tucker
+2016,"Tucker County, West Virginia",54093,6926,Tucker
+2017,"Tucker County, West Virginia",54093,6915,Tucker
+2018,"Tucker County, West Virginia",54093,6955,Tucker
+2019,"Tucker County, West Virginia",54093,6839,Tucker
+2020,"Tucker County, West Virginia",54093,6754,Tucker
+2021,"Tucker County, West Virginia",54093,6700,Tucker
+2022,"Tucker County, West Virginia",54093,6625,Tucker
+2023,"Tucker County, West Virginia",54093,6618,Tucker
+2024,"Tucker County, West Virginia",54093,6573,Tucker
+2015,"Tucker County, West Virginia, South Atlantic, South, United States",54093,6966,Tucker
+2011,Tyler County,54095,9120,Tyler
+2012,Tyler County,54095,9054,Tyler
+2013,Tyler County,54095,9007,Tyler
+2014,Tyler County,54095,9085,Tyler
+2016,"Tyler County, West Virginia",54095,8972,Tyler
+2017,"Tyler County, West Virginia",54095,8795,Tyler
+2018,"Tyler County, West Virginia",54095,8746,Tyler
+2019,"Tyler County, West Virginia",54095,8591,Tyler
+2020,"Tyler County, West Virginia",54095,8292,Tyler
+2021,"Tyler County, West Virginia",54095,8208,Tyler
+2022,"Tyler County, West Virginia",54095,8081,Tyler
+2023,"Tyler County, West Virginia",54095,7894,Tyler
+2024,"Tyler County, West Virginia",54095,7843,Tyler
+2015,"Tyler County, West Virginia, South Atlantic, South, United States",54095,8975,Tyler
+2011,Upshur County,54097,24270,Upshur
+2012,Upshur County,54097,24441,Upshur
+2013,Upshur County,54097,24601,Upshur
+2014,Upshur County,54097,24662,Upshur
+2016,"Upshur County, West Virginia",54097,24658,Upshur
+2017,"Upshur County, West Virginia",54097,24465,Upshur
+2018,"Upshur County, West Virginia",54097,24415,Upshur
+2019,"Upshur County, West Virginia",54097,24176,Upshur
+2020,"Upshur County, West Virginia",54097,23818,Upshur
+2021,"Upshur County, West Virginia",54097,23812,Upshur
+2022,"Upshur County, West Virginia",54097,23715,Upshur
+2023,"Upshur County, West Virginia",54097,23566,Upshur
+2024,"Upshur County, West Virginia",54097,23650,Upshur
+2015,"Upshur County, West Virginia, South Atlantic, South, United States",54097,24758,Upshur
+2011,Wayne County,54099,42194,Wayne
+2012,Wayne County,54099,41885,Wayne
+2013,Wayne County,54099,41840,Wayne
+2014,Wayne County,54099,41517,Wayne
+2016,"Wayne County, West Virginia",54099,40531,Wayne
+2017,"Wayne County, West Virginia",54099,40153,Wayne
+2018,"Wayne County, West Virginia",54099,39944,Wayne
+2019,"Wayne County, West Virginia",54099,39402,Wayne
+2020,"Wayne County, West Virginia",54099,38865,Wayne
+2021,"Wayne County, West Virginia",54099,38563,Wayne
+2022,"Wayne County, West Virginia",54099,38025,Wayne
+2023,"Wayne County, West Virginia",54099,37779,Wayne
+2024,"Wayne County, West Virginia",54099,37589,Wayne
+2015,"Wayne County, West Virginia, South Atlantic, South, United States",54099,40971,Wayne
+2011,Webster County,54101,9124,Webster
+2012,Webster County,54101,8982,Webster
+2013,Webster County,54101,8833,Webster
+2014,Webster County,54101,8750,Webster
+2016,"Webster County, West Virginia",54101,8646,Webster
+2017,"Webster County, West Virginia",54101,8372,Webster
+2018,"Webster County, West Virginia",54101,8285,Webster
+2019,"Webster County, West Virginia",54101,8114,Webster
+2020,"Webster County, West Virginia",54101,8352,Webster
+2021,"Webster County, West Virginia",54101,8270,Webster
+2022,"Webster County, West Virginia",54101,8125,Webster
+2023,"Webster County, West Virginia",54101,8025,Webster
+2024,"Webster County, West Virginia",54101,7947,Webster
+2015,"Webster County, West Virginia, South Atlantic, South, United States",54101,8755,Webster
+2011,West Virginia,54000,1856301,West
+2012,West Virginia,54000,1856872,West
+2013,West Virginia,54000,1853914,West
+2014,West Virginia,54000,1849489,West
+2011,Wetzel County,54103,16369,Wetzel
+2012,Wetzel County,54103,16344,Wetzel
+2013,Wetzel County,54103,16112,Wetzel
+2014,Wetzel County,54103,15955,Wetzel
+2016,"Wetzel County, West Virginia",54103,15640,Wetzel
+2017,"Wetzel County, West Virginia",54103,15437,Wetzel
+2018,"Wetzel County, West Virginia",54103,15270,Wetzel
+2019,"Wetzel County, West Virginia",54103,15065,Wetzel
+2020,"Wetzel County, West Virginia",54103,14412,Wetzel
+2021,"Wetzel County, West Virginia",54103,14211,Wetzel
+2022,"Wetzel County, West Virginia",54103,14027,Wetzel
+2023,"Wetzel County, West Virginia",54103,13972,Wetzel
+2024,"Wetzel County, West Virginia",54103,13766,Wetzel
+2015,"Wetzel County, West Virginia, South Atlantic, South, United States",54103,15816,Wetzel
+2011,Wirt County,54105,5755,Wirt
+2012,Wirt County,54105,5774,Wirt
+2013,Wirt County,54105,5838,Wirt
+2014,Wirt County,54105,5790,Wirt
+2016,"Wirt County, West Virginia",54105,5806,Wirt
+2017,"Wirt County, West Virginia",54105,5794,Wirt
+2018,"Wirt County, West Virginia",54105,5830,Wirt
+2019,"Wirt County, West Virginia",54105,5821,Wirt
+2020,"Wirt County, West Virginia",54105,5187,Wirt
+2021,"Wirt County, West Virginia",54105,5067,Wirt
+2022,"Wirt County, West Virginia",54105,5095,Wirt
+2023,"Wirt County, West Virginia",54105,4994,Wirt
+2024,"Wirt County, West Virginia",54105,4924,Wirt
+2015,"Wirt County, West Virginia, South Atlantic, South, United States",54105,5880,Wirt
+2011,Wood County,54107,86888,Wood
+2012,Wood County,54107,86616,Wood
+2013,Wood County,54107,86522,Wood
+2014,Wood County,54107,86469,Wood
+2016,"Wood County, West Virginia",54107,85643,Wood
+2017,"Wood County, West Virginia",54107,85104,Wood
+2018,"Wood County, West Virginia",54107,84203,Wood
+2019,"Wood County, West Virginia",54107,83518,Wood
+2020,"Wood County, West Virginia",54107,84146,Wood
+2021,"Wood County, West Virginia",54107,83820,Wood
+2022,"Wood County, West Virginia",54107,83364,Wood
+2023,"Wood County, West Virginia",54107,82947,Wood
+2024,"Wood County, West Virginia",54107,82757,Wood
+2015,"Wood County, West Virginia, South Atlantic, South, United States",54107,86452,Wood
+2011,Wyoming County,54109,23460,Wyoming
+2012,Wyoming County,54109,23210,Wyoming
+2013,Wyoming County,54109,22940,Wyoming
+2014,Wyoming County,54109,22578,Wyoming
+2016,"Wyoming County, West Virginia",54109,21763,Wyoming
+2017,"Wyoming County, West Virginia",54109,21210,Wyoming
+2018,"Wyoming County, West Virginia",54109,20786,Wyoming
+2019,"Wyoming County, West Virginia",54109,20394,Wyoming
+2020,"Wyoming County, West Virginia",54109,21319,Wyoming
+2021,"Wyoming County, West Virginia",54109,21031,Wyoming
+2022,"Wyoming County, West Virginia",54109,20570,Wyoming
+2023,"Wyoming County, West Virginia",54109,20262,Wyoming
+2024,"Wyoming County, West Virginia",54109,19964,Wyoming
+2015,"Wyoming County, West Virginia, South Atlantic, South, United States",54109,22151,Wyoming

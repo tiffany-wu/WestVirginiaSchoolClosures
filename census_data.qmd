@@ -1,0 +1,138 @@
+---
+title: "wv_census"
+format: html
+editor: visual
+---
+
+Making overall county population census df.
+
+```{r}
+# Clear environment
+rm(list=ls())
+
+library(dplyr)
+library(purrr)
+library(readr)
+library(jsonlite)
+library(tidycensus)
+
+```
+
+
+
+
+
+```{r}
+# 2015-2019
+wv_pop_2015_2019 <- map_dfr(2015:2019, function(y) {
+  get_estimates(
+    geography = "county",
+    state = "WV",
+    product = "population",
+    year = y
+  ) %>%
+    filter(variable == "POP") %>%
+    transmute(
+      year = y,
+      county_name = NAME,
+      fips = GEOID,
+      population = as.numeric(value)
+    )
+})
+
+# 2020-2024, using Vintage 2024
+wv_pop_2020_2024 <- map_dfr(2021:2024, function(y) {
+  get_estimates(
+    geography = "county",
+    state = "WV",
+    product = "population",
+    year = y,
+    vintage = 2024
+  ) %>%
+    filter(variable == paste0("POPESTIMATE", y)) %>%
+    transmute(
+      year = y,
+      county_name = NAME,
+      fips = GEOID,
+      population = as.numeric(value)
+    )
+})
+
+get_wv_pop_post2020 <- function(y) {
+  get_estimates(
+    geography = "county",
+    state = "WV",
+    product = "population",
+    year = y,
+    vintage = 2024
+  ) %>%
+    filter(variable == "POPESTIMATE") %>%
+    transmute(
+      year = y,
+      county_name = NAME,
+      fips = GEOID,
+      population = as.numeric(value)
+    )
+}
+
+wv_pop_2020_2024 <- map_dfr(2020:2024, get_wv_pop_post2020)
+
+wv_pop_2011_2014 <- read_csv(
+  "https://www2.census.gov/programs-surveys/popest/datasets/2010-2019/counties/totals/co-est2019-alldata.csv"
+) %>%
+  filter(STATE == 54, COUNTY != 0) %>%   # WV counties only; drops state total
+  select(
+    state_fips = STATE,
+    county_fips = COUNTY,
+    county_name = CTYNAME,
+    starts_with("POPESTIMATE")
+  ) %>%
+  pivot_longer(
+    cols = starts_with("POPESTIMATE"),
+    names_to = "year",
+    values_to = "population"
+  ) %>%
+  mutate(
+    year = as.numeric(str_remove(year, "POPESTIMATE")),
+    county_fips = str_pad(county_fips, width = 3, pad = "0"),
+    state_fips = str_pad(state_fips, width = 2, pad = "0"),
+    fips = paste0(state_fips, county_fips),
+    population = as.numeric(population)
+  ) %>%
+  filter(year %in% 2011:2014) %>%
+  select(year, county_name, fips, population) %>%
+  arrange(county_name, year)
+
+print(wv_pop_2011_2014, n = Inf)
+
+# Combine
+wv_pop <- bind_rows(wv_pop_2011_2014, wv_pop_2015_2019, wv_pop_2020_2024) %>%
+  arrange(county_name, year)%>%
+  mutate(county = word(county_name, 1))
+
+write_csv(wv_pop, "wv_2011_2024.csv")
+
+
+test_2024 <- get_estimates(
+  geography = "county",
+  state = "WV",
+  product = "population",
+  vintage = 2024
+)
+
+test_2024 %>%
+  count(variable)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
