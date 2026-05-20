@@ -186,15 +186,25 @@ school_existence <- school_existence %>%
   )
 
 # =========================
-# 1a. LOAD INFERRED SCHOOL TYPES (parallel column for comparison)
+# 1a. LOAD INFERRED SCHOOL TYPES (joined on SchlID, not school name)
 # =========================
-# This loads final_type from inferred_school_types_final.csv and attaches it
-# as Type_inferred alongside the existing Type column, so the two assignments
-# can be compared (see type_comparison below). The existing Type pipeline
-# (school_types_clean + standardize_type + elem_middle_schools) is unchanged.
+# Loads final_type from inferred_school_types_final.csv and attaches it as
+# Type_inferred alongside the existing Type column. The merge key is SchlID
+# (6-digit district+local school code), which is more stable than the school
+# name. The inferred file's own School column is also carried through as
+# School_inferred so we can verify in section 3a whether the SchlID match
+# actually points to the same school (school codes are occasionally reused
+# after closures/consolidations).
 
-# Normalize a school name so it can be matched across data sources:
-#   uppercase, drop punctuation, collapse whitespace, drop trailing " SCHOOL".
+# Zero-pad a school identifier to a 6-character string for matching.
+pad_schlid <- function(x) {
+  x <- stringr::str_squish(as.character(x))
+  x <- stringr::str_pad(x, width = 6, side = "left", pad = "0")
+  x
+}
+
+# Helper to normalize names for similarity scoring (used only in verification,
+# not in the join itself).
 normalize_school_name <- function(x) {
   x <- stringr::str_to_upper(x)
   x <- stringr::str_replace_all(x, "[^A-Z0-9 ]", " ")
@@ -219,30 +229,86 @@ final_type_to_label <- function(x) {
 inferred_school_types <- read_csv("inferred_school_types_final.csv",
                                   show_col_types = FALSE) %>%
   mutate(
-    school_key = normalize_school_name(School),
+    SchlID_key    = pad_schlid(SchlID),
+    School_inferred = stringr::str_squish(School),
     Type_inferred = final_type_to_label(final_type)
   ) %>%
-  filter(!is.na(Type_inferred)) %>%
-  distinct(school_key, .keep_all = TRUE) %>%
-  select(school_key, Type_inferred)
+  filter(!is.na(Type_inferred), !is.na(SchlID_key), SchlID_key != "000000") %>%
+  distinct(SchlID_key, .keep_all = TRUE) %>%
+  select(SchlID_key, School_inferred, Type_inferred)
 
-# Attach Type_inferred to school_composition (parallel to Type)
+# Attach Type_inferred + School_inferred to school_composition.
+# school_composition's SchlID = Dist (3 digits) concatenated with Schl (3 digits).
 school_composition <- school_composition %>%
-  mutate(school_key = normalize_school_name(School)) %>%
-  left_join(inferred_school_types, by = "school_key") %>%
-  select(-school_key)
+  mutate(
+    SchlID_key = paste0(
+      stringr::str_pad(stringr::str_squish(as.character(Dist)), 3, "left", "0"),
+      stringr::str_pad(stringr::str_squish(as.character(Schl)), 3, "left", "0")
+    )
+  ) %>%
+  left_join(inferred_school_types, by = "SchlID_key") %>%
+  select(-SchlID_key)
 
-# Attach Type_inferred to school_existence (parallel to Type)
+# Attach Type_inferred + School_inferred to school_existence.
+# school_existence's SchlID = Schl_ID (already 6 digits, but pad defensively).
 school_existence <- school_existence %>%
-  mutate(school_key = normalize_school_name(School)) %>%
-  left_join(inferred_school_types, by = "school_key") %>%
-  select(-school_key)
+  mutate(SchlID_key = pad_schlid(Schl_ID)) %>%
+  left_join(inferred_school_types, by = "SchlID_key") %>%
+  select(-SchlID_key)
+
+# =========================
+# 1b. LOAD CURATED FINAL TYPES (source of truth for visualization)
+# =========================
+# school_existence_with_cleaned_types.xlsx is a CURATED file the user manually
+# edited: it carries Type_raw / Type_pipeline / Type_inferred plus a hand-
+# verified `type_final` column. We treat this file as read-only input and use
+# `type_final` as the canonical school Type everywhere downstream
+# (visualizations, filters, panels). The earlier Type / Type_inferred /
+# Type_raw columns are kept for transparency and for the comparison sheets.
+curated_path <- "school_existence_with_cleaned_types.xlsx"
+if (!file.exists(curated_path)) {
+  warning(curated_path, " not found — Type_final will be NA and Type will fall ",
+          "back to the pipeline value.")
+  curated_final_types <- tibble::tibble(
+    SchlID_key = character(0),
+    Type_final = character(0)
+  )
+} else {
+  curated_final_types <- read_excel(curated_path) %>%
+    mutate(
+      SchlID_key = pad_schlid(Schl_ID),
+      Type_final = stringr::str_squish(as.character(type_final))
+    ) %>%
+    filter(!is.na(SchlID_key), nzchar(SchlID_key)) %>%
+    distinct(SchlID_key, .keep_all = TRUE) %>%
+    select(SchlID_key, Type_final)
+  message("Loaded curated type_final for ", nrow(curated_final_types), " schools.")
+}
+
+# Attach Type_final to school_existence (by Schl_ID).
+school_existence <- school_existence %>%
+  mutate(SchlID_key = pad_schlid(Schl_ID)) %>%
+  left_join(curated_final_types, by = "SchlID_key") %>%
+  select(-SchlID_key)
+
+# Attach Type_final to school_composition (by Dist + Schl -> 6-char SchlID).
+school_composition <- school_composition %>%
+  mutate(
+    SchlID_key = paste0(
+      stringr::str_pad(stringr::str_squish(as.character(Dist)), 3, "left", "0"),
+      stringr::str_pad(stringr::str_squish(as.character(Schl)), 3, "left", "0")
+    )
+  ) %>%
+  left_join(curated_final_types, by = "SchlID_key") %>%
+  select(-SchlID_key)
 # =========================
 # 2. HELPER FUNCTIONS
 # =========================
 clean_school_status <- function(df) {
-  if (!"Type_inferred" %in% names(df)) df$Type_inferred <- NA_character_
-  if (!"Type_raw"      %in% names(df)) df$Type_raw      <- NA_character_
+  if (!"Type_inferred"   %in% names(df)) df$Type_inferred   <- NA_character_
+  if (!"Type_raw"        %in% names(df)) df$Type_raw        <- NA_character_
+  if (!"Type_final"      %in% names(df)) df$Type_final      <- NA_character_
+  if (!"School_inferred" %in% names(df)) df$School_inferred <- NA_character_
 
   df %>%
     mutate(across(where(is.character), stringr::str_squish)) %>%
@@ -251,9 +317,11 @@ clean_school_status <- function(df) {
       District = str_remove(District, " County Schools$| Schools$| School District$"),
       District = str_squish(District),
       School = str_squish(School),
+      School_inferred = str_squish(School_inferred),
       Type = str_squish(Type),
       Type_raw = str_squish(Type_raw),
       Type_inferred = str_squish(Type_inferred),
+      Type_final = str_squish(Type_final),
       start_year = as.integer(start_year),
       end_year = as.integer(end_year),
       flipped = as.logical(flipped),
@@ -322,8 +390,10 @@ clean_school_composition <- function(df) {
     stringr::str_replace_all("\\r\\n", " ") %>%
     stringr::str_squish()
 
-  if (!"Type_inferred" %in% names(df)) df$Type_inferred <- NA_character_
-  if (!"Type_raw"      %in% names(df)) df$Type_raw      <- NA_character_
+  if (!"Type_inferred"   %in% names(df)) df$Type_inferred   <- NA_character_
+  if (!"Type_raw"        %in% names(df)) df$Type_raw        <- NA_character_
+  if (!"Type_final"      %in% names(df)) df$Type_final      <- NA_character_
+  if (!"School_inferred" %in% names(df)) df$School_inferred <- NA_character_
 
   df %>%
     mutate(across(where(is.character), stringr::str_squish)) %>%
@@ -333,12 +403,15 @@ clean_school_composition <- function(df) {
       District = str_remove(District, " County Schools$| Schools$| School District$"),
       District = str_squish(District),
       School = str_squish(School),
+      School_inferred = str_squish(School_inferred),
       Type = str_squish(Type),
       Type_raw = str_squish(Type_raw),
       Type_inferred = str_squish(Type_inferred),
+      Type_final = str_squish(Type_final),
       headcount = readr::parse_number(`Total Headcount`)
     ) %>%
-    select(Year, District, Schl, School, Type_raw, Type, Type_inferred, headcount)
+    select(Year, District, Schl, School, School_inferred,
+           Type_raw, Type, Type_inferred, Type_final, headcount)
 }
 
 build_pre_post_plot_data <- function(district_panel_df, offset = 0) {
@@ -602,28 +675,66 @@ classify_match <- function(a, b, c) {
   )
 }
 
+# --- Name similarity helper for verifying the SchlID merge ---
+# Token-Jaccard similarity on normalized names: shared tokens / total unique tokens.
+# 1.00 = identical after normalization, 0.00 = no tokens shared, NA = either name missing.
+name_similarity <- function(a, b) {
+  out <- rep(NA_real_, length(a))
+  for (i in seq_along(a)) {
+    if (is.na(a[i]) || is.na(b[i])) next
+    ta <- strsplit(normalize_school_name(a[i]), " ", fixed = TRUE)[[1]]
+    tb <- strsplit(normalize_school_name(b[i]), " ", fixed = TRUE)[[1]]
+    ta <- ta[nchar(ta) > 0]; tb <- tb[nchar(tb) > 0]
+    if (!length(ta) && !length(tb)) { out[i] <- 1; next }
+    if (!length(ta) ||  !length(tb)) { out[i] <- 0; next }
+    inter <- length(intersect(ta, tb))
+    uni   <- length(union(ta, tb))
+    out[i] <- if (uni == 0) NA_real_ else inter / uni
+  }
+  out
+}
+
+merge_check <- function(sim) {
+  dplyr::case_when(
+    is.na(sim)  ~ "no_inferred_match",
+    sim >= 0.80 ~ "ok",
+    sim >= 0.40 ~ "minor_diff",        # name formatting / suffix differences
+    TRUE        ~ "likely_wrong_match" # names look like different schools
+  )
+}
+
 # school_status: one row per school in the existence/status file
 type_comparison_status <- school_status %>%
   mutate(
-    Type_raw      = str_squish(Type_raw),
-    Type          = str_squish(Type),
-    Type_inferred = str_squish(Type_inferred),
-    type_match    = classify_match(Type_raw, Type, Type_inferred)
+    Type_raw         = str_squish(Type_raw),
+    Type             = str_squish(Type),
+    Type_inferred    = str_squish(Type_inferred),
+    Type_final       = str_squish(Type_final),
+    School_inferred  = str_squish(School_inferred),
+    name_similarity  = name_similarity(School, School_inferred),
+    merge_check      = merge_check(name_similarity),
+    type_match       = classify_match(Type_raw, Type, Type_inferred)
   ) %>%
-  select(District, Schl_ID, School,
-         Type_raw, Type_pipeline = Type, Type_inferred,
+  select(District, Schl_ID, School, School_inferred,
+         name_similarity, merge_check,
+         Type_raw, Type_pipeline = Type, Type_inferred, Type_final,
          type_match)
 
 # school_comp_clean: collapse the year panel to one row per (Schl, School)
 type_comparison_comp <- school_comp_clean %>%
   mutate(
-    Type_raw      = str_squish(Type_raw),
-    Type          = str_squish(Type),
-    Type_inferred = str_squish(Type_inferred)
+    Type_raw         = str_squish(Type_raw),
+    Type             = str_squish(Type),
+    Type_inferred    = str_squish(Type_inferred),
+    Type_final       = str_squish(Type_final),
+    School_inferred  = str_squish(School_inferred)
   ) %>%
-  distinct(District, Schl, School, Type_raw, Type, Type_inferred) %>%
+  distinct(District, Schl, School, School_inferred,
+           Type_raw, Type, Type_inferred, Type_final) %>%
   mutate(
-    type_match = classify_match(Type_raw, Type, Type_inferred)
+    name_similarity = name_similarity(School, School_inferred),
+    merge_check     = merge_check(name_similarity),
+    type_match      = classify_match(Type_raw, Type, Type_inferred)
   ) %>%
   rename(Type_pipeline = Type)
 
@@ -632,6 +743,11 @@ message("Three-source type match — school_status:")
 print(table(type_comparison_status$type_match, useNA = "ifany"))
 message("Three-source type match — school_comp_clean:")
 print(table(type_comparison_comp$type_match, useNA = "ifany"))
+
+message("SchlID merge check (name similarity) — school_status:")
+print(table(type_comparison_status$merge_check, useNA = "ifany"))
+message("SchlID merge check (name similarity) — school_comp_clean:")
+print(table(type_comparison_comp$merge_check, useNA = "ifany"))
 
 # -------------------------------------------------------------
 # Write the comparison to an Excel workbook for manual review.
@@ -674,6 +790,25 @@ summary_comp   <- dplyr::arrange(
   dplyr::desc(n)
 )
 
+# Merge-quality sheets: SchlID matched but school names look different.
+# Sorted worst-first so the suspect rows (likely school-code reuse) are on top.
+merge_check_status <- dplyr::arrange(
+  dplyr::filter(type_comparison_status, merge_check %in% c("minor_diff", "likely_wrong_match")),
+  name_similarity, District, School
+)
+merge_check_comp <- dplyr::arrange(
+  dplyr::filter(type_comparison_comp,   merge_check %in% c("minor_diff", "likely_wrong_match")),
+  name_similarity, District, School
+)
+
+merge_check_summary <- dplyr::bind_rows(
+  dplyr::mutate(dplyr::count(type_comparison_status, merge_check, name = "n"),
+                source = "school_status"),
+  dplyr::mutate(dplyr::count(type_comparison_comp,   merge_check, name = "n"),
+                source = "school_comp_clean")
+)
+merge_check_summary <- merge_check_summary[, c("source", "merge_check", "n")]
+
 openxlsx::write.xlsx(
   list(
     school_status_all      = school_status_all,
@@ -681,13 +816,130 @@ openxlsx::write.xlsx(
     school_status_disagree = school_status_disagree,
     school_comp_disagree   = school_comp_disagree,
     summary_status         = summary_status,
-    summary_comp           = summary_comp
+    summary_comp           = summary_comp,
+    merge_check_status     = merge_check_status,
+    merge_check_comp       = merge_check_comp,
+    merge_check_summary    = merge_check_summary
   ),
   file = type_check_path,
   overwrite = TRUE
 )
 
 message("Wrote three-source type comparison to: ", normalizePath(type_check_path))
+
+# =========================
+# 3b. PER-SCHOOL CSV: types + status (from school_comp_clean joined to school_status)
+# =========================
+# One row per school in the enrollment file. Carries all three Type columns and
+# the status fields (start/end year, closed, flipped, news URLs) from school_status.
+# Status is joined on District + the last 3 chars of the school code, which is
+# the same matching rule already used elsewhere in this script (Schl in
+# school_composition is the 3-digit local code; Schl_ID in school_status is
+# the 6-digit district+local code).
+
+# Distinct school-level rows from school_comp_clean
+schools_from_comp <- dplyr::group_by(school_comp_clean, District, Schl)
+schools_from_comp <- dplyr::summarise(
+  schools_from_comp,
+  School                = dplyr::first(School),
+  Type_raw              = dplyr::first(Type_raw),
+  Type_pipeline         = dplyr::first(Type),
+  Type_inferred         = dplyr::first(Type_inferred),
+  n_years_with_data     = dplyr::n_distinct(Year),
+  first_year_with_data  = suppressWarnings(min(Year, na.rm = TRUE)),
+  last_year_with_data   = suppressWarnings(max(Year, na.rm = TRUE)),
+  total_headcount_last  = sum(headcount[Year == suppressWarnings(max(Year, na.rm = TRUE))],
+                              na.rm = TRUE),
+  .groups = "drop"
+)
+
+# Status side (the columns we want to merge in)
+status_cols <- intersect(
+  c("Schl_ID", "start_year", "end_year", "flipped", "closed",
+    "Consolidation_Summary", "Closure_News_URL", "Closure_News_URL2"),
+  names(school_status)
+)
+status_for_join <- dplyr::mutate(
+  school_status,
+  school_match_id = stringr::str_sub(as.character(Schl_ID), -3, -1)
+)
+status_for_join <- dplyr::select(status_for_join,
+                                 dplyr::all_of(c("District", "school_match_id", status_cols)))
+
+schools_with_types_and_status <- dplyr::mutate(
+  schools_from_comp,
+  school_match_id = stringr::str_sub(as.character(Schl), -3, -1)
+)
+schools_with_types_and_status <- dplyr::left_join(
+  schools_with_types_and_status,
+  status_for_join,
+  by = c("District", "school_match_id")
+)
+schools_with_types_and_status <- dplyr::select(schools_with_types_and_status,
+                                               -school_match_id)
+schools_with_types_and_status <- dplyr::arrange(schools_with_types_and_status,
+                                                District, School)
+
+schools_csv_path <- "schools_with_types_and_status.csv"
+write.csv(schools_with_types_and_status, schools_csv_path, row.names = FALSE, na = "")
+message("Wrote per-school types + status CSV to: ", normalizePath(schools_csv_path))
+
+# =========================
+# 3c. MERGED school_existence.xlsx with cleaned types
+# =========================
+# Take the cleaned school_status (which already carries Type_raw / Type / Type_inferred
+# along with every original existence column) and write it back to an .xlsx with
+# the three Type columns up front. Saved to a NEW filename so the original
+# school_existence.xlsx is not overwritten — rename it if you want to swap it in.
+school_existence_merged <- dplyr::rename(school_status, Type_pipeline = Type)
+
+# Put the three type columns right after School for easy scanning
+front_cols <- intersect(
+  c("Schl_ID", "District", "School", "Type_raw", "Type_pipeline", "Type_inferred"),
+  names(school_existence_merged)
+)
+other_cols <- setdiff(names(school_existence_merged), front_cols)
+school_existence_merged <- school_existence_merged[, c(front_cols, other_cols)]
+
+# Auto-write disabled: school_existence_with_cleaned_types.xlsx is now the
+# CURATED INPUT (it carries the user's hand-verified `type_final` column) and
+# must not be overwritten by the script. If you want an updated snapshot of
+# the pipeline's view, write to a different filename, e.g.:
+# openxlsx::write.xlsx(school_existence_merged,
+#                      "school_existence_pipeline_types.xlsx",
+#                      overwrite = TRUE)
+
+
+# =========================
+# 3d. OVERRIDE Type WITH CURATED type_final
+# =========================
+# This is the canonical Type column from this point on. Every downstream
+# visualization, filter, panel, and map reads `Type`, so by replacing it here
+# (after the comparison sheets and CSV are written) we ensure the dashboard
+# shows the user's curated types — falling back to the pipeline value only if
+# Type_final is missing for a school.
+apply_type_final <- function(df) {
+  if (!"Type_final" %in% names(df)) return(df)
+  has_final     <- !is.na(df$Type_final) & nzchar(df$Type_final)
+  df$Type_final_source <- ifelse(has_final, "curated", "pipeline_fallback")
+  df$Type <- ifelse(has_final, df$Type_final, df$Type)
+  df
+}
+
+school_status    <- apply_type_final(school_status)
+school_comp_clean <- apply_type_final(school_comp_clean)
+
+message(sprintf(
+  "Type_final applied — school_status: %d curated, %d pipeline fallback",
+  sum(school_status$Type_final_source == "curated",            na.rm = TRUE),
+  sum(school_status$Type_final_source == "pipeline_fallback",  na.rm = TRUE)
+))
+message(sprintf(
+  "Type_final applied — school_comp_clean: %d curated, %d pipeline fallback",
+  sum(school_comp_clean$Type_final_source == "curated",           na.rm = TRUE),
+  sum(school_comp_clean$Type_final_source == "pipeline_fallback", na.rm = TRUE)
+))
+
 
 district_panel <- build_district_panel(district_enr, school_status) %>%
   left_join(census, by = c("District", "Year"))
@@ -877,8 +1129,46 @@ ui <- fluidPage(
     
     mainPanel(
       tabsetPanel(
+         # =========================
+          # LANDING PAGE
+          # =========================
+          tabPanel(
+            "Welcome",
+           
+            br(),
+           
+            div(
+              style = "text-align: center;",
+             
+              h2("West Virginia School Consolidation Dashboard"),
+             
+              p(
+                "Explore school closures, consolidation timing, and enrollment trends across West Virginia districts from 2011-2026.",
+                style = "font-size: 16px; color: #555;"
+              ),
+             
+              br(),
+             
+              # GIF (served via the addResourcePath("static", www) prefix
+              # registered at the top of this file)
+              img(
+                src   = "static/Weiland-wv-graphic-final.gif",
+                width = "80%",
+                alt   = "West Virginia school consolidation animation",
+                style = "border-radius: 10px; box-shadow: 0px 0px 10px rgba(0,0,0,0.15);"
+              ),
+             
+              br(), br(),
+             
+              p(
+                "Use the tabs above to navigate maps, enrollment trends, and closure patterns.",
+                style = "font-size: 14px; color: #777;"
+              )
+            )
+          ),
+         
         tabPanel(
-          "Overview",
+          "District Summary Table",
           DTOutput("desc_table")
         ),
         tabPanel(
