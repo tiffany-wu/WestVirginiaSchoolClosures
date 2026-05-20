@@ -23,14 +23,98 @@ select <- dplyr::select
 options(shiny.launch.browser = TRUE)
 
 # =========================
+# 0. STATIC ASSETS
+# =========================
+# Make sure Shiny can serve files under www/ no matter how the app is launched
+# (runApp(), Run App button, sourced, working dir set elsewhere, etc.).
+# We resolve the absolute path of the www/ folder and register two prefixes:
+#   /static/    -> www/                    (e.g. /static/wv_flag.jpg)
+#   /map_files/ -> www/map_files/          (preserves the iframe's relative
+#                                           links into enrollment_change_map_files/)
+local({
+  # Try to find the directory this script lives in.
+  app_dir <- tryCatch({
+    f <- sys.frame(1)$ofile
+    if (is.null(f)) stop("not sourced")
+    dirname(normalizePath(f, mustWork = FALSE))
+  }, error = function(e) {
+    # Fallback to the current working directory.
+    getwd()
+  })
+
+  www_dir <- file.path(app_dir, "www")
+  if (!dir.exists(www_dir)) www_dir <- normalizePath("www", mustWork = FALSE)
+
+  if (dir.exists(www_dir)) {
+    shiny::addResourcePath("static", www_dir)
+    map_dir <- file.path(www_dir, "map_files")
+    if (dir.exists(map_dir)) {
+      shiny::addResourcePath("map_files", map_dir)
+    }
+    message("Registered Shiny resource paths from: ", www_dir)
+  } else {
+    warning("www/ folder not found near app.R — images and the map iframe may 404.")
+  }
+})
+
+# =========================
 # 1. READ RAW DATA
 # =========================
-school_existence <- read_excel("school_existence.xlsx")
-school_composition <- read_excel("school_composition.xlsx")
+school_existence          <- read_excel("school_existence.xlsx")
+school_composition        <- read_excel("school_composition.xlsx")
 district_enrollment_panel <- read.csv("district_enrollment_panel.csv")
-census <- read_csv("wv_2011_2024.csv") %>%
+census_raw                <- read_csv("wv_2011_2024.csv")
+
+# Preserve the original Type from the .xlsx files BEFORE the pipeline rewrites
+# them, so we can compare three sources side-by-side later:
+#   Type_raw      = original Type column from school_existence / school_composition
+#   Type          = result of the existing pipeline (school_year_enrollment_types.csv
+#                   + standardize_type + elem_middle_schools override)
+#   Type_inferred = final_type from inferred_school_types_final.csv
+school_existence$Type_raw   <- school_existence$Type
+school_composition$Type_raw <- school_composition$Type
+
+# =========================
+# 1.0 FILTER TO THE 55 WV COUNTY DISTRICTS
+# =========================
+# Only keep rows whose district matches one of these 55 counties (case-insensitive,
+# after squishing whitespace). Each raw input source has its own native
+# district column — we filter using whatever that column is called:
+#   school_existence          -> "District"
+#   school_composition        -> "District"
+#   district_enrollment_panel -> "District"
+#   wv_2011_2024.csv (census) -> "county"   (no "District" column in this file)
+# Anything outside this list (state-wide programs, virtual academies, blank rows,
+# typos) is dropped here so it never enters the rest of the pipeline.
+ALLOWED_DISTRICTS <- toupper(c(
+  "Barbour", "Berkeley", "Boone", "Braxton", "Brooke", "Cabell", "Calhoun", "Clay",
+  "Doddridge", "Fayette", "Gilmer", "Grant", "Greenbrier", "Hampshire", "Hancock",
+  "Hardy", "Harrison", "Jackson", "Jefferson", "Kanawha", "Lewis", "Lincoln", "Logan",
+  "Marion", "Marshall", "Mason", "McDowell", "Mercer", "Mineral", "Mingo", "Monongalia",
+  "Monroe", "Morgan", "Nicholas", "Ohio", "Pendleton", "Pleasants", "Pocahontas",
+  "Preston", "Putnam", "Raleigh", "Randolph", "Ritchie", "Roane", "Summers", "Taylor",
+  "Tucker", "Tyler", "Upshur", "Wayne", "Webster", "Wetzel", "Wirt", "Wood", "Wyoming"
+))
+
+keep_district <- function(df, col) {
+  key    <- toupper(stringr::str_squish(as.character(df[[col]])))
+  before <- nrow(df)
+  out    <- df[key %in% ALLOWED_DISTRICTS, , drop = FALSE]
+  message(sprintf("District filter on %s$%s: kept %d of %d rows",
+                  deparse(substitute(df)), col, nrow(out), before))
+  out
+}
+
+school_existence          <- keep_district(school_existence,          "District")
+school_composition        <- keep_district(school_composition,        "District")
+district_enrollment_panel <- keep_district(district_enrollment_panel, "District")
+census_raw                <- keep_district(census_raw,                "county")
+
+# Build the census frame the rest of the app expects (renames county -> District
+# for downstream joins, and year -> Year).
+census <- census_raw %>%
   mutate(District = county,
-         Year = year)
+         Year     = year)
 
 # Replace Type in school_composition with version without NAs
 school_types <- read.csv("school_year_enrollment_types.csv")
@@ -100,10 +184,66 @@ school_existence <- school_existence %>%
       TRUE ~ Type
     )
   )
+
+# =========================
+# 1a. LOAD INFERRED SCHOOL TYPES (parallel column for comparison)
+# =========================
+# This loads final_type from inferred_school_types_final.csv and attaches it
+# as Type_inferred alongside the existing Type column, so the two assignments
+# can be compared (see type_comparison below). The existing Type pipeline
+# (school_types_clean + standardize_type + elem_middle_schools) is unchanged.
+
+# Normalize a school name so it can be matched across data sources:
+#   uppercase, drop punctuation, collapse whitespace, drop trailing " SCHOOL".
+normalize_school_name <- function(x) {
+  x <- stringr::str_to_upper(x)
+  x <- stringr::str_replace_all(x, "[^A-Z0-9 ]", " ")
+  x <- stringr::str_squish(x)
+  x <- stringr::str_remove(x, "\\s+SCHOOL$")
+  x
+}
+
+# Map final_type (lowercase tokens in the CSV) to the human-readable labels
+# the rest of the app uses for Type.
+final_type_to_label <- function(x) {
+  dplyr::case_when(
+    x == "elementary"        ~ "Elementary",
+    x == "middle"            ~ "Middle",
+    x == "high"              ~ "High School",
+    x == "elementary_middle" ~ "Elementary + Middle",
+    x == "alternative"       ~ "Alternative",
+    TRUE                     ~ NA_character_
+  )
+}
+
+inferred_school_types <- read_csv("inferred_school_types_final.csv",
+                                  show_col_types = FALSE) %>%
+  mutate(
+    school_key = normalize_school_name(School),
+    Type_inferred = final_type_to_label(final_type)
+  ) %>%
+  filter(!is.na(Type_inferred)) %>%
+  distinct(school_key, .keep_all = TRUE) %>%
+  select(school_key, Type_inferred)
+
+# Attach Type_inferred to school_composition (parallel to Type)
+school_composition <- school_composition %>%
+  mutate(school_key = normalize_school_name(School)) %>%
+  left_join(inferred_school_types, by = "school_key") %>%
+  select(-school_key)
+
+# Attach Type_inferred to school_existence (parallel to Type)
+school_existence <- school_existence %>%
+  mutate(school_key = normalize_school_name(School)) %>%
+  left_join(inferred_school_types, by = "school_key") %>%
+  select(-school_key)
 # =========================
 # 2. HELPER FUNCTIONS
 # =========================
 clean_school_status <- function(df) {
+  if (!"Type_inferred" %in% names(df)) df$Type_inferred <- NA_character_
+  if (!"Type_raw"      %in% names(df)) df$Type_raw      <- NA_character_
+
   df %>%
     mutate(across(where(is.character), stringr::str_squish)) %>%
     mutate(
@@ -112,6 +252,8 @@ clean_school_status <- function(df) {
       District = str_squish(District),
       School = str_squish(School),
       Type = str_squish(Type),
+      Type_raw = str_squish(Type_raw),
+      Type_inferred = str_squish(Type_inferred),
       start_year = as.integer(start_year),
       end_year = as.integer(end_year),
       flipped = as.logical(flipped),
@@ -179,7 +321,10 @@ clean_school_composition <- function(df) {
   names(df) <- names(df) %>%
     stringr::str_replace_all("\\r\\n", " ") %>%
     stringr::str_squish()
-  
+
+  if (!"Type_inferred" %in% names(df)) df$Type_inferred <- NA_character_
+  if (!"Type_raw"      %in% names(df)) df$Type_raw      <- NA_character_
+
   df %>%
     mutate(across(where(is.character), stringr::str_squish)) %>%
     mutate(
@@ -189,9 +334,11 @@ clean_school_composition <- function(df) {
       District = str_squish(District),
       School = str_squish(School),
       Type = str_squish(Type),
+      Type_raw = str_squish(Type_raw),
+      Type_inferred = str_squish(Type_inferred),
       headcount = readr::parse_number(`Total Headcount`)
     ) %>%
-    select(Year, District, Schl, School, Type, headcount)
+    select(Year, District, Schl, School, Type_raw, Type, Type_inferred, headcount)
 }
 
 build_pre_post_plot_data <- function(district_panel_df, offset = 0) {
@@ -431,6 +578,117 @@ school_status <- school_status %>%
   ) %>%
   select(-elem_middle, -school_match_id)
 
+# =========================
+# 3a. COMPARE THREE TYPE SOURCES SIDE-BY-SIDE
+# =========================
+# Type_raw      = original Type from school_existence.xlsx / school_composition.xlsx
+# Type          = result of the existing pipeline
+#                 (school_year_enrollment_types.csv + standardize_type + elem_middle override)
+# Type_inferred = final_type from inferred_school_types_final.csv
+
+classify_match <- function(a, b, c) {
+  # all-three agreement, any pairwise agreement, or all three different
+  has_a <- !is.na(a); has_b <- !is.na(b); has_c <- !is.na(c)
+  dplyr::case_when(
+    has_a & has_b & has_c & a == b & b == c ~ "all_three_agree",
+    has_a & has_b & has_c & a != b & a != c & b != c ~ "all_three_differ",
+    !has_c                              ~ "no_inferred_match",
+    !has_b                              ~ "no_pipeline_type",
+    !has_a                              ~ "no_raw_type",
+    a == b & b != c                     ~ "raw=pipeline; inferred differs",
+    a == c & b != c                     ~ "raw=inferred; pipeline differs",
+    b == c & a != b                     ~ "pipeline=inferred; raw differs",
+    TRUE                                ~ "disagree"
+  )
+}
+
+# school_status: one row per school in the existence/status file
+type_comparison_status <- school_status %>%
+  mutate(
+    Type_raw      = str_squish(Type_raw),
+    Type          = str_squish(Type),
+    Type_inferred = str_squish(Type_inferred),
+    type_match    = classify_match(Type_raw, Type, Type_inferred)
+  ) %>%
+  select(District, Schl_ID, School,
+         Type_raw, Type_pipeline = Type, Type_inferred,
+         type_match)
+
+# school_comp_clean: collapse the year panel to one row per (Schl, School)
+type_comparison_comp <- school_comp_clean %>%
+  mutate(
+    Type_raw      = str_squish(Type_raw),
+    Type          = str_squish(Type),
+    Type_inferred = str_squish(Type_inferred)
+  ) %>%
+  distinct(District, Schl, School, Type_raw, Type, Type_inferred) %>%
+  mutate(
+    type_match = classify_match(Type_raw, Type, Type_inferred)
+  ) %>%
+  rename(Type_pipeline = Type)
+
+# Quick console summary
+message("Three-source type match — school_status:")
+print(table(type_comparison_status$type_match, useNA = "ifany"))
+message("Three-source type match — school_comp_clean:")
+print(table(type_comparison_comp$type_match, useNA = "ifany"))
+
+# -------------------------------------------------------------
+# Write the comparison to an Excel workbook for manual review.
+# Sheets:
+#   school_status_all      — all schools in school_status with the 3 type cols
+#   school_comp_all        — distinct (Schl, School) rows from school_comp_clean
+#   school_status_disagree — only rows where the 3 sources don't unanimously agree
+#   school_comp_disagree   — same, for school_comp_clean
+#   summary_status / summary_comp — counts by type_match
+#
+# NOTE: written with explicit dplyr:: calls (no %>%) so this block still runs
+# even if magrittr/dplyr aren't attached in the current session.
+# -------------------------------------------------------------
+if (!requireNamespace("openxlsx", quietly = TRUE)) {
+  install.packages("openxlsx", repos = "https://cloud.r-project.org")
+}
+# Defensive: make sure the pipe is available anywhere it's still used.
+suppressMessages(suppressWarnings(library(magrittr)))
+
+type_check_path <- "type_source_comparison.xlsx"
+
+school_status_all      <- dplyr::arrange(type_comparison_status, District, School)
+school_comp_all        <- dplyr::arrange(type_comparison_comp,   District, School)
+
+school_status_disagree <- dplyr::arrange(
+  dplyr::filter(type_comparison_status, type_match != "all_three_agree"),
+  type_match, District, School
+)
+school_comp_disagree   <- dplyr::arrange(
+  dplyr::filter(type_comparison_comp,   type_match != "all_three_agree"),
+  type_match, District, School
+)
+
+summary_status <- dplyr::arrange(
+  dplyr::count(type_comparison_status, type_match, name = "n"),
+  dplyr::desc(n)
+)
+summary_comp   <- dplyr::arrange(
+  dplyr::count(type_comparison_comp,   type_match, name = "n"),
+  dplyr::desc(n)
+)
+
+openxlsx::write.xlsx(
+  list(
+    school_status_all      = school_status_all,
+    school_comp_all        = school_comp_all,
+    school_status_disagree = school_status_disagree,
+    school_comp_disagree   = school_comp_disagree,
+    summary_status         = summary_status,
+    summary_comp           = summary_comp
+  ),
+  file = type_check_path,
+  overwrite = TRUE
+)
+
+message("Wrote three-source type comparison to: ", normalizePath(type_check_path))
+
 district_panel <- build_district_panel(district_enr, school_status) %>%
   left_join(census, by = c("District", "Year"))
 
@@ -532,8 +790,9 @@ ui <- fluidPage(
         style = "display: flex; align-items: center; gap: 15px;",
         
         img(
-          src = "wv_flag.jpg",
-          height = "50px"
+          src = "static/wv_flag.jpg",
+          height = "50px",
+          alt = "West Virginia state flag"
         ),
         
         h2("West Virginia School Consolidations",
@@ -626,7 +885,8 @@ ui <- fluidPage(
           "Total Enrollment Change Map",
           tags$iframe(
             src = "map_files/enrollment_change_map.html",
-            style = "width: 100%; height: 700px; border: none;"
+            style = "width: 100%; height: 700px; border: none;",
+            seamless = NA
           )
         ),
         tabPanel(
