@@ -947,16 +947,23 @@ district_panel <- build_district_panel(district_enr, school_status) %>%
 district_shapes <- sf::st_read("district_shapes/tl_2021_54_unsd.shp", quiet = TRUE)
 district_shapes <- sf::st_transform(district_shapes, 4326)
 
-school_type_choices <- sort(unique(c(
-  as.character(school_status$Type),
-  as.character(school_comp_clean$Type)
-)))
+school_type_order <- c(
+  "Elementary",
+  "Elementary + Middle",
+  "Middle",
+  "High School",
+  "Alternative"
+)
 
-school_type_choices <- school_type_choices[!is.na(school_type_choices)]
-school_type_choices <- sort(unique(c(
+school_type_choices <- unique(c(
   as.character(school_status$Type),
   as.character(school_comp_clean$Type)
-)))
+))
+school_type_choices <- school_type_choices[!is.na(school_type_choices)]
+school_type_choices <- c(
+  school_type_order[school_type_order %in% school_type_choices],
+  sort(setdiff(school_type_choices, school_type_order))
+)
 
 
 #district_map_sf <- build_map_data(district_panel, district_shapes) %>%
@@ -1212,19 +1219,19 @@ ui <- fluidPage(
             
             hr(),
             
-            h4("Using the School Grade Levels gilter", style = "margin-top: 10px;"),
+            h4("Using the School Grade Levels filter", style = "margin-top: 10px;"),
             
             tags$ul(
               style = "font-size: 13px;",
               
               tags$li(
                 strong("Enrollment: "),
-                "Filtering by School Grade Level will only show enrollment for the selected school grades(s) only (e.g., elementary enrollment if 'Elementary' is selected)."
+                "Filtering by School Grade Level will show enrollment for the selected school grade level(s) only (e.g., elementary school enrollment if 'Elementary' is selected)."
               ),
               
               tags$li(
                 strong("Consolidation timing: "),
-                "The dashed line marks the first closure of the selected school grades level(s) in that district."
+                "The dashed line marks the first closure of the selected school grade level(s) in that district."
               ),
               
               tags$li(
@@ -1275,7 +1282,7 @@ ui <- fluidPage(
             
             p(
               "After indexing, values represent percent change relative to the starting year. 
-    For instance, a value of 90 indicates a 10% decline from the baseline of 100. The table below shows an example  to further explain this.",
+    For instance, a value of 90 indicates a 10% decline from the baseline of 100. The table below shows an example to further explain this.",
               style = "font-size: 13px; color: #555;"
             ),
             
@@ -1309,7 +1316,7 @@ ui <- fluidPage(
             # Explanation of example
             p(
               "In this example, from the year 2015 to 2016, school enrollment declines by 10% (from 2,000 students to 1,800 students, or an enrollment index from 100 to 90), while 
-              population only declines by about 1.7% (from 60,000 people to 59,000 people, or an enrollment index from 100 to 98.3). 
+              population only declines by about 1.7% (from 60,000 people to 59,000 people, or a population index from 100 to 98.3). 
     This shows that enrollment is falling faster than the underlying population.",
               style = "font-size: 13px; color: #555; margin-top: 10px;"
             )
