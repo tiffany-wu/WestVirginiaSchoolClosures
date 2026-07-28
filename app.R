@@ -285,10 +285,40 @@ if (!file.exists(curated_path)) {
   message("Loaded curated type_final for ", nrow(curated_final_types), " schools.")
 }
 
-# Attach Type_final to school_existence (by Schl_ID).
+# ---- Curated closure status (used by the District Summary Table) ----
+# The same curated workbook also carries hand-maintained `closed` / `end_year`
+# columns. The District Summary Table reads those directly, so edits made in
+# school_existence_with_cleaned_types.xlsx drive that tab without any code
+# change. They are pulled in under distinct names (Closed_curated /
+# End_year_curated) so the pipeline's own closed/end_year columns stay intact
+# for every other tab.
+if (!file.exists(curated_path)) {
+  curated_closure_status <- tibble::tibble(
+    SchlID_key       = character(0),
+    Closed_curated   = logical(0),
+    End_year_curated = integer(0)
+  )
+} else {
+  curated_closure_status <- read_excel(curated_path) %>%
+    mutate(
+      SchlID_key       = pad_schlid(Schl_ID),
+      Closed_curated   = as.logical(closed),
+      End_year_curated = suppressWarnings(as.integer(end_year))
+    ) %>%
+    filter(!is.na(SchlID_key), nzchar(SchlID_key)) %>%
+    distinct(SchlID_key, .keep_all = TRUE) %>%
+    select(SchlID_key, Closed_curated, End_year_curated)
+  message("Loaded curated closure status: ",
+          sum(curated_closure_status$Closed_curated, na.rm = TRUE),
+          " schools marked closed across ",
+          nrow(curated_closure_status), " rows.")
+}
+
+# Attach Type_final + curated closure status to school_existence (by Schl_ID).
 school_existence <- school_existence %>%
   mutate(SchlID_key = pad_schlid(Schl_ID)) %>%
-  left_join(curated_final_types, by = "SchlID_key") %>%
+  left_join(curated_final_types,    by = "SchlID_key") %>%
+  left_join(curated_closure_status, by = "SchlID_key") %>%
   select(-SchlID_key)
 
 # Attach Type_final to school_composition (by Dist + Schl -> 6-char SchlID).
@@ -310,6 +340,11 @@ clean_school_status <- function(df) {
   if (!"Type_final"      %in% names(df)) df$Type_final      <- NA_character_
   if (!"School_inferred" %in% names(df)) df$School_inferred <- NA_character_
 
+  # Curated closure columns fall back to the pipeline values when the curated
+  # workbook is absent, so the District Summary Table still renders.
+  if (!"Closed_curated"   %in% names(df)) df$Closed_curated   <- df$closed
+  if (!"End_year_curated" %in% names(df)) df$End_year_curated <- df$end_year
+
   df %>%
     mutate(across(where(is.character), stringr::str_squish)) %>%
     mutate(
@@ -325,7 +360,9 @@ clean_school_status <- function(df) {
       start_year = as.integer(start_year),
       end_year = as.integer(end_year),
       flipped = as.logical(flipped),
-      closed = as.logical(closed)
+      closed = as.logical(closed),
+      Closed_curated = as.logical(Closed_curated),
+      End_year_curated = as.integer(End_year_curated)
     )
 }
 
@@ -1515,6 +1552,42 @@ server <- function(input, output, session) {
       )
   })
   
+  # ---- Real closures for the District Summary Table -----------------------
+  # Closure status is read from the curated workbook's own `closed` column; the
+  # spreadsheets are never modified.
+  #
+  # When WVDE reissues a school code, the workbook ends up holding TWO rows for
+  # the same school: the retired code marked closed, and the successor code
+  # marked open. Wetzel's 2025 reconstitution is the clearest case --
+  # 92504 Valley High (closed, end 2025) sits alongside 92506 Valley High
+  # (open, start 2026), and likewise 92502 / 92505 for Magnolia. Neither school
+  # actually closed; only the identifier changed.
+  #
+  # That open row is the dataset's own evidence, so we use it rather than a
+  # hand-maintained list: a closed row is suppressed when another row in the
+  # same district carries the same school name and starts after the closure
+  # year. Nothing is hardcoded, and new reconstitutions are handled the moment
+  # the successor row appears in the data.
+  real_closures_curated <- reactive({
+    status <- filtered_school_status()
+
+    closed_rows <- status %>%
+      filter(Closed_curated, !is.na(End_year_curated))
+
+    if (nrow(closed_rows) == 0) return(closed_rows)
+
+    successors <- status %>%
+      filter(!Closed_curated, !is.na(start_year)) %>%
+      select(District, School, successor_start = start_year)
+
+    suppressed <- closed_rows %>%
+      inner_join(successors, by = c("District", "School")) %>%
+      filter(successor_start > End_year_curated) %>%
+      distinct(Schl_ID)
+
+    closed_rows %>% anti_join(suppressed, by = "Schl_ID")
+  })
+
   output$desc_table <- renderDT({
     desc_df <- filtered_school_comp() %>%
       group_by(Year, District) %>%
@@ -1524,9 +1597,8 @@ server <- function(input, output, session) {
         .groups = "drop"
       ) %>%
       left_join(
-        filtered_school_status() %>%
-          filter(closed, !is.na(end_year)) %>%
-          group_by(District, Year = end_year) %>%
+        real_closures_curated() %>%
+          group_by(District, Year = End_year_curated) %>%
           summarise(
             `# Schools Closed` = n(),
             `Schools Closed (Names)` = paste(sort(unique(School)), collapse = "; "),
