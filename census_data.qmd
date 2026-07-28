@@ -15,12 +15,10 @@ library(purrr)
 library(readr)
 library(jsonlite)
 library(tidycensus)
+library(stringr)   # word(), str_remove(), str_pad()
+library(tidyr)     # pivot_longer()
 
 ```
-
-
-
-
 
 ```{r}
 # 2015-2019
@@ -125,14 +123,318 @@ test_2024 %>%
 
 ```
 
+## School-age population (ages 5–17) from ACS
 
+Unlike the total-population series above, which comes from the Population Estimates Program, this pulls from the ACS 5-year tables. Two consequences worth remembering when reading the dashboard:
 
+- ACS 5-year figures are a rolling 5-year average, so a value labelled 2019 actually reflects 2015–2019. The series is therefore smoother and lags turning points by roughly two years relative to the PEP totals.
+- We use 5-year (not 1-year) because most WV counties fall under the 65,000 population threshold required for 1-year estimates.
 
+Ages 5–17 are summed from table B01001 (sex by age) across both sexes:
 
+| Variable   | Sex    | Age band |
+|------------|--------|----------|
+| B01001_004 | Male   | 5–9      |
+| B01001_005 | Male   | 10–14    |
+| B01001_006 | Male   | 15–17    |
+| B01001_028 | Female | 5–9      |
+| B01001_029 | Female | 10–14    |
+| B01001_030 | Female | 15–17    |
 
+Requires a Census API key: `tidycensus::census_api_key("YOUR_KEY", install = TRUE)`.
 
+```{r}
+school_age_vars <- c(
+  "B01001_004", "B01001_005", "B01001_006",   # male   5-9, 10-14, 15-17
+  "B01001_028", "B01001_029", "B01001_030"    # female 5-9, 10-14, 15-17
+)
 
+# ACS 5-year is published from 2009 onward; 2020 exists as a 5-year product
+# even though the 2020 1-year release was cancelled. Adjust the upper bound if
+# a newer vintage has been released since.
+acs_years <- 2011:2024
 
+get_wv_school_age <- function(y) {
+  message("Fetching ACS 5-year school-age population for ", y, " ...")
 
+  out <- try(
+    get_acs(
+      geography = "county",
+      state     = "WV",
+      variables = school_age_vars,
+      year      = y,
+      survey    = "acs5"
+    ),
+    silent = TRUE
+  )
 
+  # Skip years the API doesn't serve rather than aborting the whole run.
+  if (inherits(out, "try-error")) {
+    warning("ACS 5-year not available for ", y, " - skipping.")
+    return(NULL)
+  }
 
+  out %>%
+    group_by(GEOID, NAME) %>%
+    summarise(
+      school_age_pop = sum(estimate, na.rm = TRUE),
+      # Margins of error add in quadrature, not linearly.
+      school_age_moe = sqrt(sum(moe^2, na.rm = TRUE)),
+      .groups = "drop"
+    ) %>%
+    transmute(
+      year        = y,
+      county_name = NAME,
+      fips        = GEOID,
+      school_age_pop,
+      school_age_moe
+    )
+}
+
+wv_school_age <- map_dfr(acs_years, get_wv_school_age) %>%
+  # "Barbour County, West Virginia" -> "Barbour", matching the `county` column
+  # in wv_2011_2024.csv so app.R can join on District.
+  mutate(county = word(county_name, 1)) %>%
+  arrange(county, year)
+
+# Sanity checks before writing.
+stopifnot(
+  nrow(wv_school_age) > 0,
+  all(wv_school_age$school_age_pop >= 0)
+)
+
+wv_school_age %>%
+  count(year) %>%
+  print(n = Inf)   # expect 55 counties per year
+
+wv_school_age %>%
+  group_by(year) %>%
+  summarise(state_total = sum(school_age_pop)) %>%
+  print(n = Inf)   # should trend down, roughly 280k -> 250k
+
+write_csv(wv_school_age, "wv_school_age_2011_2024.csv")
+```
+
+## School-age population (ages 5–17) from PEP county characteristics
+
+Same quantity as above, but from the Population Estimates Program rather than the ACS. This matters because the total-population series at the top of this file is *also* PEP, so a PEP school-age series compares like with like: same vintage methodology, annual point-in-time estimates rather than a 5-year rolling average, and no ACS sampling error.
+
+We use the **AGESEX** file, not ALLDATA. ALLDATA bands age as 0-4 / 5-9 / 10-14 / 15-19, which cannot produce 5-17 without splitting the 15-19 band. AGESEX carries `AGE513_TOT` (ages 5-13) and `AGE1417_TOT` (ages 14-17), which sum to exactly 5-17.
+
+Two vintages are needed to span 2011-2025, and they are stitched at the decade boundary the same way the total-population series is. Note that Vintage 2019 is benchmarked to the 2010 census and Vintage 2025 to the 2020 census, so values either side of 2019/2020 will not line up perfectly.
+
+**The `YEAR` column is a code, not a calendar year — and the coding differs between vintages.** Per the CC-EST2025-AGESEX layout, Vintage 2025 uses:
+
+```         
+1 = 4/1/2020 estimates base
+2 = 7/1/2020   3 = 7/1/2021   4 = 7/1/2022
+5 = 7/1/2023   6 = 7/1/2024   7 = 7/1/2025
+```
+
+Vintage 2019 is *not* the same. Per the CC-EST2019-AGESEX layout it carries **two** April 2010 rows, so the July series starts at code 3:
+
+```         
+1 = 4/1/2010 Census population
+2 = 4/1/2010 estimates base
+3 = 7/1/2010   4 = 7/1/2011   ...   12 = 7/1/2019
+```
+
+A formula tuned to one vintage silently shifts the other by a year: applying Vintage 2025's `base + YEAR - 2` to the Vintage 2019 file yields 2010-2020, which is both wrong and one year longer than the file actually covers.
+
+To avoid depending on how many base rows a vintage happens to carry, we anchor from the **last** code instead of the first: the maximum `YEAR` is always the final July estimate, so counting backwards from it is correct either way. Base rows land below the requested range and drop out. The result is then asserted against the expected years, so any future layout change fails loudly.
+
+```{r}
+pep_base <- "https://www2.census.gov/programs-surveys/popest/datasets"
+
+# Try candidate vintages in order. Each candidate is paired with the final July
+# year that vintage covers, because that anchors the YEAR decoding: falling back
+# to an older vintage without adjusting the anchor would shift the whole series.
+fetch_first_available <- function(candidates) {
+  for (nm in names(candidates)) {
+    got <- try(suppressWarnings(read_csv(nm, show_col_types = FALSE,
+                                         progress = FALSE)),
+               silent = TRUE)
+    if (!inherits(got, "try-error")) {
+      message("Loaded: ", nm, "  (last July estimate: ", candidates[[nm]], ")")
+      return(list(data = got, last_july_year = candidates[[nm]]))
+    }
+    message("  not available: ", nm)
+  }
+  stop("None of the candidate URLs could be read:\n",
+       paste(" -", names(candidates), collapse = "\n"))
+}
+
+# `last_july_year` is the final July estimate in the vintage (2019 or 2025).
+# max(YEAR) always corresponds to it, so decoding backwards from the top is
+# robust to however many April base rows sit at codes 1..n.
+decode_pep <- function(df, last_july_year, expect_years) {
+  needed <- c("SUMLEV", "YEAR", "STNAME", "CTYNAME", "STATE", "COUNTY",
+              "AGE513_TOT", "AGE1417_TOT")
+  missing <- setdiff(needed, names(df))
+  if (length(missing)) {
+    stop("PEP file is missing expected columns: ",
+         paste(missing, collapse = ", "),
+         "\nColumns present: ", paste(names(df), collapse = ", "))
+  }
+
+  # These columns carry leading zeros in the source ("050", "001"), so readr
+  # may hand back character or numeric depending on how it guesses. Comparing
+  # "050" == 50 silently matches nothing, and max() on character YEAR sorts
+  # lexicographically ("9" > "12"). Coerce explicitly before any comparison.
+  df <- df %>%
+    mutate(
+      SUMLEV = as.integer(SUMLEV),
+      STATE  = as.integer(STATE),
+      COUNTY = as.integer(COUNTY),
+      YEAR   = as.integer(YEAR)
+    )
+
+  # SUMLEV 050 = county; COUNTY 000 would be a state roll-up.
+  cty <- df %>% filter(SUMLEV == 50, COUNTY != 0)
+
+  if (nrow(cty) == 0) {
+    stop("No county rows survived the SUMLEV/COUNTY filter.\n",
+         "  SUMLEV values seen: ",
+         paste(utils::head(unique(df$SUMLEV), 10), collapse = ", "), "\n",
+         "  COUNTY values seen: ",
+         paste(utils::head(unique(df$COUNTY), 10), collapse = ", "))
+  }
+
+  max_code <- max(cty$YEAR, na.rm = TRUE)
+
+  out <- cty %>%
+    mutate(
+      year = as.integer(last_july_year - (max_code - YEAR)),
+      fips = paste0(
+        str_pad(STATE,  width = 2, pad = "0"),
+        str_pad(COUNTY, width = 3, pad = "0")
+      ),
+      # AGE513_TOT is ages 5-13 and AGE1417_TOT is 14-17: contiguous, so the
+      # sum is exactly 5-17 with no gap or double count.
+      school_age_pop_pep = AGE513_TOT + AGE1417_TOT
+    ) %>%
+    filter(year %in% expect_years) %>%
+    transmute(year, county_name = CTYNAME, fips, school_age_pop_pep)
+
+  # Fail loudly if decoding did not produce what the vintage promises.
+  # Compare as integers: identical() is type-strict, and 2020:2025 is integer
+  # while an arithmetic result is double.
+  got <- sort(unique(as.integer(out$year)))
+  want <- sort(as.integer(expect_years))
+  if (!identical(got, want)) {
+    decoded_all <- sort(unique(as.integer(
+      last_july_year - (max_code - cty$YEAR)
+    )))
+    stop("YEAR decoding produced ",
+         if (length(got)) paste(got, collapse = ", ") else "<nothing>",
+         " but expected ", paste(want, collapse = ", "), ".\n",
+         "  raw YEAR codes present: ",
+         paste(sort(unique(cty$YEAR)), collapse = ", "), "\n",
+         "  max code treated as ", last_july_year, " -> decoded years: ",
+         paste(decoded_all, collapse = ", "), "\n",
+         "  Check the file layout PDF - the YEAR coding may have changed.")
+  }
+  if (dplyr::n_distinct(out$fips) != 55) {
+    stop("Expected 55 WV counties, got ", dplyr::n_distinct(out$fips))
+  }
+  out
+}
+
+# --- 2010s decade: keep 2011 through whatever the vintage ends at ------------
+pep_2010s_src <- fetch_first_available(setNames(
+  list(2019, 2020),
+  c(file.path(pep_base, "2010-2019/counties/asrh/cc-est2019-agesex-54.csv"),
+    file.path(pep_base, "2010-2020/counties/asrh/cc-est2020-agesex-54.csv"))
+))
+pep_2010s <- decode_pep(
+  pep_2010s_src$data,
+  last_july_year = pep_2010s_src$last_july_year,
+  expect_years   = 2011:pep_2010s_src$last_july_year
+)
+
+# --- 2020s decade: starts the year after the 2010s vintage ends --------------
+pep_2020s_src <- fetch_first_available(setNames(
+  list(2025, 2024),
+  c(file.path(pep_base, "2020-2025/counties/asrh/cc-est2025-agesex-54.csv"),
+    file.path(pep_base, "2020-2024/counties/asrh/cc-est2024-agesex-54.csv"))
+))
+pep_2020s <- decode_pep(
+  pep_2020s_src$data,
+  last_july_year = pep_2020s_src$last_july_year,
+  expect_years   = (pep_2010s_src$last_july_year + 1):pep_2020s_src$last_july_year
+)
+
+wv_school_age_pep <- bind_rows(pep_2010s, pep_2020s) %>%
+  mutate(county = word(county_name, 1)) %>%
+  arrange(county, year)
+
+stopifnot(
+  nrow(wv_school_age_pep) > 0,
+  all(wv_school_age_pep$school_age_pop_pep >= 0)
+)
+
+wv_school_age_pep %>%
+  group_by(year) %>%
+  summarise(state_total = sum(school_age_pop_pep)) %>%
+  print(n = Inf)
+
+write_csv(wv_school_age_pep, "wv_school_age_pep_2011_2025.csv")
+```
+
+## Comparing the ACS and PEP school-age series
+
+Both series claim to measure the same thing, so the comparison is a genuine check rather than a formality. Expect PEP to sit somewhat above or below ACS in level and to move more sharply year to year, since ACS is a 5-year average. Large *level* gaps in specific counties are the thing to look at closely.
+
+```{r}
+acs <- read_csv("wv_school_age_2011_2024.csv", show_col_types = FALSE) %>%
+  select(county, year, acs = school_age_pop)
+
+pep <- read_csv("wv_school_age_pep_2011_2025.csv", show_col_types = FALSE) %>%
+  select(county, year, pep = school_age_pop_pep)
+
+cmp <- inner_join(acs, pep, by = c("county", "year")) %>%
+  mutate(
+    diff     = pep - acs,
+    pct_diff = 100 * (pep - acs) / acs
+  )
+
+cat("Overlapping county-years:", nrow(cmp), "\n")
+cat("Correlation:", round(cor(cmp$acs, cmp$pep), 4), "\n")
+cat("Median % difference (PEP vs ACS):",
+    round(median(cmp$pct_diff), 2), "%\n\n")
+
+# State totals side by side
+cmp %>%
+  group_by(year) %>%
+  summarise(
+    acs_total = sum(acs),
+    pep_total = sum(pep),
+    pct_diff  = 100 * (pep_total - acs_total) / acs_total
+  ) %>%
+  print(n = Inf)
+
+# Counties where the two sources disagree most
+cat("\nLargest average absolute % disagreement by county:\n")
+cmp %>%
+  group_by(county) %>%
+  summarise(mean_abs_pct = mean(abs(pct_diff)), .groups = "drop") %>%
+  arrange(desc(mean_abs_pct)) %>%
+  head(10) %>%
+  print()
+
+# Year-over-year volatility: PEP should be choppier than the smoothed ACS.
+cat("\nMean absolute year-over-year % change:\n")
+cmp %>%
+  arrange(county, year) %>%
+  group_by(county) %>%
+  mutate(
+    acs_yoy = 100 * (acs - lag(acs)) / lag(acs),
+    pep_yoy = 100 * (pep - lag(pep)) / lag(pep)
+  ) %>%
+  ungroup() %>%
+  summarise(
+    acs = round(mean(abs(acs_yoy), na.rm = TRUE), 2),
+    pep = round(mean(abs(pep_yoy), na.rm = TRUE), 2)
+  ) %>%
+  print()
+```
