@@ -20,6 +20,10 @@ library(htmltools)
 
 select <- dplyr::select
 
+# Null-coalescing helper. Shiny defines this internally but has not always
+# exported it, so define it here rather than depend on the version in use.
+`%||%` <- function(a, b) if (is.null(a) || length(a) == 0) b else a
+
 options(shiny.launch.browser = TRUE)
 
 # =========================
@@ -1051,6 +1055,224 @@ district_panel <- build_district_panel(district_enr, school_status) %>%
 district_shapes <- sf::st_read("district_shapes/tl_2021_54_unsd.shp", quiet = TRUE)
 district_shapes <- sf::st_transform(district_shapes, 4326)
 
+# =========================
+# 3.5 HOPE SCHOLARSHIP DATA
+# =========================
+# Recipient counts by county from the Hope Scholarship annual reports
+# (SY 2022-23, 2023-24, 2024-25). The workbook has a title block above the
+# header row, so we locate the row whose first cell is "County" rather than
+# assuming a fixed skip. Optional: if the file is absent the tab renders an
+# explanatory message instead of a map, so a fresh clone still runs.
+hope_path <- "Hope Recipients by County 2022-2025.xlsx"
+
+hope_recipients <- local({
+  if (!file.exists(hope_path)) {
+    warning(hope_path, " not found - the Hope Scholarship tab will be empty.")
+    return(tibble::tibble(
+      District = character(0), hope_2023 = integer(0),
+      hope_2024 = integer(0),  hope_2025 = integer(0)
+    ))
+  }
+
+  raw <- read_excel(hope_path, col_names = FALSE)
+  names(raw) <- paste0("V", seq_len(ncol(raw)))
+
+  hdr <- which(stringr::str_squish(as.character(raw$V1)) == "County")[1]
+  if (is.na(hdr)) {
+    warning("Could not find the 'County' header row in ", hope_path,
+            " - the Hope Scholarship tab will be empty.")
+    return(tibble::tibble(
+      District = character(0), hope_2023 = integer(0),
+      hope_2024 = integer(0),  hope_2025 = integer(0)
+    ))
+  }
+
+  raw[(hdr + 1):nrow(raw), 1:4] %>%
+    setNames(c("District", "hope_2023", "hope_2024", "hope_2025")) %>%
+    mutate(District = stringr::str_squish(as.character(District))) %>%
+    filter(
+      !is.na(District), nzchar(District),
+      !stringr::str_detect(District, stringr::regex("^(total|source)", ignore_case = TRUE))
+    ) %>%
+    mutate(across(
+      c(hope_2023, hope_2024, hope_2025),
+      ~ tidyr::replace_na(suppressWarnings(as.integer(.x)), 0L)
+    ))
+})
+
+message("Loaded Hope Scholarship recipients for ", nrow(hope_recipients),
+        " counties; SY 24-25 statewide total = ",
+        format(sum(hope_recipients$hope_2025), big.mark = ","), ".")
+
+# Latest school-age population from the PEP series, used as the rate denominator.
+hope_pop_year <- suppressWarnings(max(school_age_pep_raw$year, na.rm = TRUE))
+if (!is.finite(hope_pop_year)) hope_pop_year <- NA_integer_
+
+hope_school_age <- if (is.na(hope_pop_year)) {
+  tibble::tibble(District = character(0), school_age_pop = numeric(0))
+} else {
+  school_age_pep_raw %>%
+    filter(year == hope_pop_year) %>%
+    transmute(
+      District       = stringr::str_squish(as.character(county)),
+      school_age_pop = as.numeric(school_age_pop_pep)
+    ) %>%
+    distinct(District, .keep_all = TRUE)
+}
+
+# First school year in which Hope money was disbursed. Closures with an end_year
+# at or after this are "post-Hope" for the dot coloring.
+HOPE_START_YEAR <- 2023L
+
+# Curated closure status is authoritative where present; fall back to the
+# pipeline columns so the tab still works without the curated workbook.
+hope_school_status <- school_status %>%
+  mutate(
+    is_closed  = dplyr::coalesce(Closed_curated,   closed),
+    close_year = dplyr::coalesce(End_year_curated, end_year)
+  )
+
+# County-level table driving the choropleth. Built off district_shapes so every
+# mapped county has a row even if it is missing from the Hope workbook.
+hope_county_base <- district_shapes %>%
+  sf::st_drop_geometry() %>%
+  transmute(
+    District = stringr::str_squish(stringr::str_remove(
+      NAME, " County School District$| County Schools$| Schools$| School District$"
+    ))
+  ) %>%
+  distinct(District) %>%
+  left_join(hope_recipients, by = "District") %>%
+  left_join(hope_school_age, by = "District") %>%
+  mutate(
+    across(c(hope_2023, hope_2024, hope_2025), ~ tidyr::replace_na(.x, 0L)),
+    # One rate per school year so the year selector can shade any of the three.
+    # The denominator is the same PEP school-age count in all three years, so
+    # these are comparable across years by construction.
+    no_denom   = is.na(school_age_pop) | school_age_pop == 0,
+    rate_2023  = ifelse(no_denom, NA_real_, 100 * hope_2023 / school_age_pop),
+    rate_2024  = ifelse(no_denom, NA_real_, 100 * hope_2024 / school_age_pop),
+    rate_2025  = ifelse(no_denom, NA_real_, 100 * hope_2025 / school_age_pop),
+    growth     = hope_2025 - hope_2023,
+    growth_pct = ifelse(hope_2023 == 0, NA_real_,
+                        100 * (hope_2025 - hope_2023) / hope_2023)
+  ) %>%
+  select(-no_denom)
+
+# Warn loudly if the Hope workbook and the shapefile disagree on county names,
+# since a silent mismatch would show up as a blank county on the map.
+local({
+  unmatched <- setdiff(hope_recipients$District, hope_county_base$District)
+  if (length(unmatched)) {
+    warning("Hope workbook counties not matched to a district shape: ",
+            paste(unmatched, collapse = ", "))
+  }
+})
+
+# ---- Closure dots -------------------------------------------------------
+# There is no latitude/longitude anywhere in the source data - school_directory
+# carries street addresses but nothing geocoded. Each dot is therefore placed at
+# a random point INSIDE its own county polygon: the per-county count and the
+# county assignment are exact, the position within the county is not. The seed
+# is fixed so the scatter is identical on every run.
+hope_dots <- local({
+  closed_schools <- hope_school_status %>%
+    filter(is_closed %in% TRUE) %>%
+    mutate(dot_era = ifelse(!is.na(close_year) & close_year >= HOPE_START_YEAR,
+                            "post", "pre"))
+
+  # Board-approved closures that have not taken effect yet: not flagged closed,
+  # but carrying a consolidation note.
+  pending_schools <- hope_school_status %>%
+    filter(!(is_closed %in% TRUE),
+           !is.na(Consolidation_Summary), nzchar(Consolidation_Summary)) %>%
+    mutate(dot_era = "pending", close_year = NA_integer_)
+
+  dots <- bind_rows(closed_schools, pending_schools)
+  if (nrow(dots) == 0) return(dots[0, ] %>% mutate(lon = numeric(0), lat = numeric(0)))
+
+  shapes_named <- district_shapes %>%
+    mutate(District = stringr::str_squish(stringr::str_remove(
+      NAME, " County School District$| County Schools$| Schools$| School District$"
+    )))
+
+  dots <- dots %>% filter(District %in% shapes_named$District)
+
+  set.seed(20260728)
+  placed <- lapply(split(dots, dots$District), function(grp) {
+    poly <- shapes_named[shapes_named$District == grp$District[1], ]
+    pts  <- suppressMessages(
+      sf::st_sample(sf::st_geometry(poly), size = nrow(grp), type = "random")
+    )
+    # st_sample can return fewer points than requested; top up from the centroid.
+    coords <- sf::st_coordinates(pts)
+    if (nrow(coords) < nrow(grp)) {
+      ctr <- sf::st_coordinates(sf::st_point_on_surface(sf::st_geometry(poly)))
+      need <- nrow(grp) - nrow(coords)
+      coords <- rbind(coords[, 1:2, drop = FALSE],
+                      cbind(X = rep(ctr[1, 1], need), Y = rep(ctr[1, 2], need)))
+    }
+    grp$lon <- coords[seq_len(nrow(grp)), 1]
+    grp$lat <- coords[seq_len(nrow(grp)), 2]
+    grp
+  })
+
+  bind_rows(placed) %>%
+    mutate(
+      dot_label = ifelse(is.na(close_year),
+                         "Closure approved, not yet effective",
+                         paste0("Last year of operation: ", close_year)),
+      dot_note  = ifelse(is.na(Consolidation_Summary), "",
+                         stringr::str_squish(sub(" \\| .*$", "", Consolidation_Summary)))
+    )
+})
+
+message("Hope tab closure dots: ", sum(hope_dots$dot_era != "pending"),
+        " closed, ", sum(hope_dots$dot_era == "pending"), " pending.")
+
+# Every dot is drawn in this one color. dot_era is still carried on the data so
+# the "closures since Hope" filter and the Status column in the school table
+# below the map keep working; it just no longer drives the fill.
+HOPE_DOT_COLOR <- "#c0392b"
+
+HOPE_DOT_LABELS <- c(
+  pre     = "Closed before Hope (through 2022)",
+  post    = paste0("Closed since Hope (", HOPE_START_YEAR, "+)"),
+  pending = "Approved, closing soon"
+)
+
+# The choropleth is a measure x year pair: the measure picks a column prefix,
+# the year picks the suffix. Growth and closure counts are still computed in
+# hope_county_base and shown in the county table; they are not shading options.
+HOPE_MEASURES <- list(
+  "rate" = list(label    = "Recipients per 100 school-age children",
+                legend   = "Per 100\nschool-age",
+                prefix   = "rate_",
+                accuracy = 0.1),
+  "hope" = list(label    = "Recipients, raw count",
+                legend   = "Recipients",
+                prefix   = "hope_",
+                accuracy = 1)
+)
+
+# Display label -> column suffix. Hope pays out on a school year, so SY 2022-23
+# is stored as 2023 (the year the school year ends), matching end_year elsewhere.
+HOPE_YEARS <- c("SY 2022-23" = "2023",
+                "SY 2023-24" = "2024",
+                "SY 2024-25" = "2025")
+
+# Color scale limits are fixed across all three years, computed once at startup
+# rather than per render. This is the whole point of a shared scale: switching
+# years must show the program growing, not re-normalize each year to look the
+# same. Anchored at 0 so a pale county always means "few recipients".
+HOPE_LIMITS <- lapply(HOPE_MEASURES, function(m) {
+  cols <- paste0(m$prefix, HOPE_YEARS)
+  c(0, max(unlist(hope_county_base[cols]), na.rm = TRUE))
+})
+
+message("Hope shared scale limits - rate: 0-", round(HOPE_LIMITS$rate[2], 2),
+        " per 100 | count: 0-", HOPE_LIMITS$hope[2], " recipients.")
+
 school_type_order <- c(
   "Elementary",
   "Elementary + Middle",
@@ -1291,6 +1513,113 @@ ui <- fluidPage(
           )
         ),
         tabPanel(
+          "Hope Scholarship & Closures",
+          div(
+            style = "background-color: #f7fbff; padding: 12px; border-radius: 6px; margin-bottom: 15px;",
+
+            h4("What this map shows", style = "margin-top: 0;"),
+
+            p(
+              "County shading shows Hope Scholarship take-up, West Virginia's education
+              savings account program, which began paying out in school year 2022-23.
+              Dots mark individual schools that have closed or are slated to close, colored
+              by whether the closure came before or after Hope money started flowing.",
+              style = "font-size: 13px;"
+            ),
+
+            p(
+              HTML("<strong>Sidebar filters apply here.</strong> District and School Grade
+              Level filter which closure dots appear; the Year range slider filters dots by
+              the school's final year of operation. County shading reflects the Hope metric
+              you pick below and is not affected by the sidebar filters, since Hope recipient
+              counts are only published for SY 2022-23 through 2024-25."),
+              style = "font-size: 13px;"
+            ),
+
+            hr(),
+
+            div(
+              style = "display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;",
+
+              div(
+                style = "flex: 2; min-width: 300px;",
+                selectInput(
+                  "hope_metric",
+                  "Color counties by",
+                  choices  = setNames(names(HOPE_MEASURES),
+                                      vapply(HOPE_MEASURES, `[[`, character(1), "label")),
+                  selected = "rate",
+                  width    = "100%"
+                )
+              ),
+
+              div(
+                style = "flex: 1; min-width: 180px;",
+                radioButtons(
+                  "hope_year",
+                  "School year",
+                  choices  = HOPE_YEARS,
+                  selected = "2025",
+                  inline   = TRUE
+                )
+              ),
+
+              div(
+                style = "flex: 1; min-width: 190px;",
+                selectInput(
+                  "hope_dot_mode",
+                  "Show school dots",
+                  choices = c(
+                    "All closures"                = "all",
+                    "Only closures since Hope"    = "post",
+                    "Hide dots"                   = "none"
+                  ),
+                  selected = "all",
+                  width    = "100%"
+                )
+              )
+            ),
+
+            p(
+              HTML("The color scale is <strong>held fixed across all three years</strong>,
+              so switching years shows the program actually growing rather than
+              re-shading each year to look the same. Statewide recipients went
+              2,333 &rarr; 5,443 &rarr; 10,530, so SY 2022-23 reads pale on purpose."),
+              style = "font-size: 12px; color: #555; margin: 8px 0 0;"
+            )
+          ),
+
+          plotOutput("hope_map", height = "620px"),
+
+          div(
+            style = "font-size: 11px; color: #666; margin-top: 10px; line-height: 1.5;",
+            HTML(
+              "Recipient counts come from the Hope Scholarship annual reports. Rates use
+              Census Population Estimates Program school-age counts as the denominator.
+              Closure records come from the curated school status file.
+              <strong>Dot positions are approximate</strong> &mdash; the source data has no
+              school coordinates, so each dot is scattered at random inside its own county.
+              The county each dot belongs to and the number of dots per county are exact;
+              the spot within the county is not."
+            )
+          ),
+
+          hr(),
+
+          h4("Counties in view", style = "margin-bottom: 4px;"),
+          p("Sorted by the selected metric. Reflects the sidebar filters.",
+            style = "font-size: 12px; color: #666;"),
+          DTOutput("hope_county_table"),
+
+          br(),
+
+          h4("Schools behind the dots", style = "margin-bottom: 4px;"),
+          p("Every school currently plotted, with its closure year and consolidation note.",
+            style = "font-size: 12px; color: #666;"),
+          DTOutput("hope_school_table")
+        ),
+
+        tabPanel(
           "Schools Closed by Year Maps (Cumulative)",
           plotOutput("cumulative_closure_maps")
         ),
@@ -1507,10 +1836,202 @@ server <- function(input, output, session) {
     if (!is.null(input$school_type_filter) && !("All" %in% input$school_type_filter)) {
       df <- df %>% filter(Type %in% input$school_type_filter)
     }
-    
+
     df
   })
-  
+
+  # =========================
+  # HOPE SCHOLARSHIP & CLOSURES MAP
+  # =========================
+  # Dots respond to all three sidebar filters plus the tab's own dot-mode select.
+  # Pending closures have no end_year, so the year slider cannot filter them;
+  # they are kept whenever the slider still reaches the present.
+  # Sidebar filters only. Kept separate from the dot-visibility toggle so that
+  # hiding the dots does not also blank out the "Schools closed" choropleth.
+  hope_dots_in_scope <- reactive({
+    df <- hope_dots
+    if (nrow(df) == 0) return(df)
+
+    if (!is.null(input$district_filter) && !("All" %in% input$district_filter)) {
+      df <- df %>% filter(District %in% input$district_filter)
+    }
+
+    if (!is.null(input$school_type_filter) && !("All" %in% input$school_type_filter)) {
+      df <- df %>% filter(Type %in% input$school_type_filter)
+    }
+
+    yr <- input$year_range
+    if (!is.null(yr)) {
+      last_close <- suppressWarnings(max(hope_dots$close_year, na.rm = TRUE))
+      if (!is.finite(last_close)) last_close <- yr[2]
+      df <- df %>%
+        filter(
+          (!is.na(close_year) & close_year >= yr[1] & close_year <= yr[2]) |
+            (is.na(close_year) & yr[2] >= last_close)
+        )
+    }
+
+    df
+  })
+
+  # Adds the tab's own dot-mode select on top of the sidebar filters.
+  hope_dots_filtered <- reactive({
+    df <- hope_dots_in_scope()
+    if (identical(input$hope_dot_mode, "post")) df <- df %>% filter(dot_era != "pre")
+    if (identical(input$hope_dot_mode, "none")) df <- df[0, , drop = FALSE]
+    df
+  })
+
+  # County polygons joined to the Hope metrics. The "n_closed" metric counts the
+  # closures inside the sidebar's district/type/year scope, so the shading tracks
+  # the same records as the dots without being tied to whether dots are visible.
+  hope_map_sf <- reactive({
+    closed_in_range <- hope_dots_in_scope() %>%
+      filter(dot_era != "pending") %>%
+      count(District, name = "n_closed")
+
+    tbl <- hope_county_base %>%
+      left_join(closed_in_range, by = "District") %>%
+      mutate(n_closed = tidyr::replace_na(n_closed, 0L))
+
+    district_shapes %>%
+      mutate(District = stringr::str_squish(stringr::str_remove(
+        NAME, " County School District$| County Schools$| Schools$| School District$"
+      ))) %>%
+      select(District) %>%
+      left_join(tbl, by = "District")
+  })
+
+  # Choropleth + closure dots, drawn with ggplot/geom_sf to match the other map
+  # tabs and to avoid taking on leaflet as a dependency.
+  output$hope_map <- renderPlot({
+    measure_id <- input$hope_metric %||% "rate"
+    year_id    <- input$hope_year   %||% "2025"
+    meta       <- HOPE_MEASURES[[measure_id]]
+    col        <- paste0(meta$prefix, year_id)
+    shp        <- hope_map_sf()
+
+    req(nrow(shp) > 0, col %in% names(shp))
+
+    shp$metric_value <- shp[[col]]
+    dots <- hope_dots_filtered()
+
+    p <- ggplot(shp) +
+      geom_sf(aes(fill = metric_value), color = "white", linewidth = 0.25) +
+      scale_fill_gradient(
+        low      = "#f2ecf9",
+        high     = "#4c2b7a",
+        na.value = "#d9d9d9",
+        # Fixed across years so the year selector reveals growth, not a rescale.
+        limits   = HOPE_LIMITS[[measure_id]],
+        labels   = scales::label_number(accuracy = meta$accuracy),
+        name     = meta$legend
+      )
+
+    if (nrow(dots) > 0) {
+      # Single-color dots. The white halo underneath keeps them readable on the
+      # darkest counties without needing a color encoding.
+      p <- p +
+        geom_point(data = dots, aes(x = lon, y = lat),
+                   colour = "white", size = 2.6, show.legend = FALSE) +
+        geom_point(data = dots, aes(x = lon, y = lat),
+                   colour = HOPE_DOT_COLOR, size = 1.7, show.legend = FALSE)
+    }
+
+    year_label <- names(HOPE_YEARS)[match(year_id, HOPE_YEARS)]
+
+    # The statewide total is spelled out because a fixed color scale makes the
+    # early years pale by design; the number keeps the magnitude unambiguous.
+    statewide <- sum(hope_county_base[[paste0("hope_", year_id)]], na.rm = TRUE)
+
+    # Stands in for the dot legend, which is gone now that all dots share a color.
+    subtitle <- sprintf(
+      "%s statewide recipients  ·  dots: %s school closure%s%s",
+      scales::comma(statewide),
+      scales::comma(nrow(dots)),
+      ifelse(nrow(dots) == 1, "", "s"),
+      if (!is.null(input$year_range)) {
+        sprintf(", %d–%d", input$year_range[1], input$year_range[2])
+      } else ""
+    )
+
+    p +
+      labs(
+        title    = paste0(meta$label, "  —  ", year_label),
+        subtitle = subtitle,
+        caption  = paste0(
+          "Dots are scattered inside their county, not placed at real addresses. ",
+          "Rate denominators use ", hope_pop_year, " Census PEP school-age population."
+        )
+      ) +
+      coord_sf(expand = FALSE) +
+      theme_void(base_size = 13) +
+      theme(
+        plot.title    = element_text(size = 14, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 11, colour = "#666666", hjust = 0.5),
+        plot.caption  = element_text(size = 9,  colour = "#888888", hjust = 0.5),
+        legend.position = "bottom",
+        legend.box      = "vertical",
+        legend.title    = element_text(size = 10),
+        legend.text     = element_text(size = 9)
+      )
+  })
+
+  # County-level numbers behind the shading. Shows all three years side by side
+  # regardless of which one is mapped, sorted by the year currently selected.
+  output$hope_county_table <- renderDT({
+    measure_id <- input$hope_metric %||% "rate"
+    year_id    <- input$hope_year   %||% "2025"
+    sort_col   <- paste0(HOPE_MEASURES[[measure_id]]$prefix, year_id)
+
+    shp <- hope_map_sf() %>% sf::st_drop_geometry()
+    req(sort_col %in% names(shp))
+
+    shp %>%
+      arrange(desc(.data[[sort_col]])) %>%
+      transmute(
+        County                 = District,
+        `Recip. 22-23`         = hope_2023,
+        `Recip. 23-24`         = hope_2024,
+        `Recip. 24-25`         = hope_2025,
+        `Per 100, 22-23`       = round(rate_2023, 2),
+        `Per 100, 23-24`       = round(rate_2024, 2),
+        `Per 100, 24-25`       = round(rate_2025, 2),
+        `Growth 22-23→24-25`   = growth,
+        `Growth %`             = round(growth_pct),
+        `School-age pop.`      = school_age_pop,
+        `Schools closed`       = n_closed
+      ) %>%
+      datatable(
+        rownames = FALSE,
+        options  = list(pageLength = 10, scrollX = TRUE,
+                        order = list())   # keep the arrange() order
+      )
+  })
+
+  # The detail the map dots cannot carry: which schools they actually are.
+  output$hope_school_table <- renderDT({
+    dots <- hope_dots_filtered()
+
+    validate(need(nrow(dots) > 0, "No closures match the current filters."))
+
+    dots %>%
+      arrange(District, desc(close_year), School) %>%
+      transmute(
+        County         = District,
+        School         = School,
+        `Grade level`  = Type,
+        `Final year`   = ifelse(is.na(close_year), "pending", as.character(close_year)),
+        Status         = unname(HOPE_DOT_LABELS[as.character(dot_era)]),
+        Note           = dot_note
+      ) %>%
+      datatable(
+        rownames = FALSE,
+        filter   = "top",
+        options  = list(pageLength = 10, scrollX = TRUE, order = list())
+      )
+  })
+
 #  filtered_district_panel <- reactive({
 #    keep_districts <- filtered_school_status() %>%
 #      distinct(District) %>%
