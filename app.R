@@ -1170,87 +1170,157 @@ local({
 })
 
 # ---- Closure dots -------------------------------------------------------
-# There is no latitude/longitude anywhere in the source data - school_directory
-# carries street addresses but nothing geocoded. Each dot is therefore placed at
-# a random point INSIDE its own county polygon: the per-county count and the
-# county assignment are exact, the position within the county is not. The seed
-# is fixed so the scatter is identical on every run.
-hope_dots <- local({
-  closed_schools <- hope_school_status %>%
-    filter(is_closed %in% TRUE) %>%
-    mutate(dot_era = ifelse(!is.na(close_year) & close_year >= HOPE_START_YEAR,
-                            "post", "pre"))
+# Dots sit at REAL school coordinates now, not scattered inside the county.
+# WV_School_Closures_Register.xlsx carries Latitude/Longitude in decimal degrees
+# (WGS84) taken from the NCES Common Core of Data school directory via each
+# school's NCES ID, so a dot marks the school as NCES geocoded it.
+#
+# Scope: only the 139 schools whose "Closure stage" reads "Closed" — i.e. the
+# rows the register flags closed = TRUE in school_existence_with_cleaned_types.
+# Deliberately EXCLUDED:
+#   "Approved but still operating" (22) — board-approved, not yet closed
+#   "In Building File"             (31) — buildings in the state closure file
+#                                         whose school record continued
+#   "Not in WVDE Data"              (1) — Cumberland Heights, no NCES record
+# The map answers "where did schools actually close", so pending closures are
+# not plotted.
+CLOSURE_REGISTER_PATH <- "WV_School_Closures_Register.xlsx"
 
-  # Board-approved closures that have not taken effect yet: not flagged closed,
-  # but carrying a consolidation note.
-  pending_schools <- hope_school_status %>%
-    filter(!(is_closed %in% TRUE),
-           !is.na(Consolidation_Summary), nzchar(Consolidation_Summary)) %>%
-    mutate(dot_era = "pending", close_year = NA_integer_)
+# Empty frame with the right columns, so a missing/broken register degrades to
+# "no dots" instead of erroring out at startup.
+empty_closure_coords <- tibble::tibble(
+  Schl_ID_key = character(0), nces_id = character(0),
+  reg_school = character(0), reg_county = character(0),
+  reg_last_year = character(0), reg_end_year = integer(0),
+  lat = numeric(0), lon = numeric(0)
+)
 
-  dots <- bind_rows(closed_schools, pending_schools)
-  if (nrow(dots) == 0) return(dots[0, ] %>% mutate(lon = numeric(0), lat = numeric(0)))
+closure_coords <- local({
+  if (!file.exists(CLOSURE_REGISTER_PATH)) {
+    warning(CLOSURE_REGISTER_PATH, " not found - the Hope tab will have no closure dots.")
+    return(empty_closure_coords)
+  }
 
-  shapes_named <- district_shapes %>%
-    mutate(District = stringr::str_squish(stringr::str_remove(
-      NAME, " County School District$| County Schools$| Schools$| School District$"
-    )))
-
-  dots <- dots %>% filter(District %in% shapes_named$District)
-
-  set.seed(20260728)
-  placed <- lapply(split(dots, dots$District), function(grp) {
-    poly <- shapes_named[shapes_named$District == grp$District[1], ]
-    pts  <- suppressMessages(
-      sf::st_sample(sf::st_geometry(poly), size = nrow(grp), type = "random")
-    )
-    # st_sample can return fewer points than requested; top up from the centroid.
-    coords <- sf::st_coordinates(pts)
-    if (nrow(coords) < nrow(grp)) {
-      ctr <- sf::st_coordinates(sf::st_point_on_surface(sf::st_geometry(poly)))
-      need <- nrow(grp) - nrow(coords)
-      coords <- rbind(coords[, 1:2, drop = FALSE],
-                      cbind(X = rep(ctr[1, 1], need), Y = rep(ctr[1, 2], need)))
+  # Read everything as text: the WVDE and NCES IDs are zero-padded codes that
+  # readxl would otherwise turn into numbers and strip the leading zeros from.
+  reg <- tryCatch(
+    read_excel(CLOSURE_REGISTER_PATH, sheet = "Closure Register", col_types = "text"),
+    error = function(e) {
+      warning("Could not read ", CLOSURE_REGISTER_PATH, ": ", conditionMessage(e))
+      NULL
     }
-    grp$lon <- coords[seq_len(nrow(grp)), 1]
-    grp$lat <- coords[seq_len(nrow(grp)), 2]
-    grp
-  })
+  )
+  if (is.null(reg)) return(empty_closure_coords)
 
-  bind_rows(placed) %>%
+  # Without these four there is nothing to plot, so bail out to no dots.
+  needed <- c("WVDE school ID", "Closure stage", "Latitude", "Longitude")
+  missing <- setdiff(needed, names(reg))
+  if (length(missing)) {
+    warning("Closure register is missing column(s): ", paste(missing, collapse = ", "),
+            " - the Hope tab will have no closure dots.")
+    return(empty_closure_coords)
+  }
+
+  # These only feed labels and a fallback closure year, so stub them if absent
+  # rather than throwing the dots away.
+  for (nm in c("NCES school ID", "School name", "County",
+               "Last operating school year", "end_year (school_existence)")) {
+    if (!nm %in% names(reg)) reg[[nm]] <- NA_character_
+  }
+
+  out <- reg %>%
+    filter(stringr::str_squish(`Closure stage`) == "Closed") %>%
+    transmute(
+      Schl_ID_key   = pad_schlid(`WVDE school ID`),
+      nces_id       = stringr::str_squish(as.character(`NCES school ID`)),
+      reg_school    = stringr::str_squish(as.character(`School name`)),
+      reg_county    = stringr::str_squish(as.character(County)),
+      reg_last_year = stringr::str_squish(as.character(`Last operating school year`)),
+      reg_end_year  = suppressWarnings(as.integer(`end_year (school_existence)`)),
+      lat = suppressWarnings(as.numeric(Latitude)),
+      lon = suppressWarnings(as.numeric(Longitude))
+    )
+
+  n_stage_closed <- nrow(out)
+
+  out <- out %>%
+    filter(!is.na(Schl_ID_key), nzchar(Schl_ID_key), !is.na(lat), !is.na(lon)) %>%
+    distinct(Schl_ID_key, .keep_all = TRUE)
+
+  if (nrow(out) < n_stage_closed) {
+    warning(sprintf(
+      "Closure register: %d of %d 'Closed' schools dropped for a missing WVDE ID or coordinates.",
+      n_stage_closed - nrow(out), n_stage_closed
+    ))
+  }
+
+  out
+})
+
+message("Closure register: ", nrow(closure_coords),
+        " closed schools with CCD coordinates (pending closures excluded).")
+
+hope_dots <- local({
+  if (nrow(closure_coords) == 0) {
+    return(hope_school_status[0, ] %>%
+             mutate(dot_era = character(0), lon = numeric(0), lat = numeric(0),
+                    dot_label = character(0), dot_note = character(0)))
+  }
+
+  # The register is the spine: an inner join keeps exactly its closed schools and
+  # pulls District / Type / Consolidation_Summary off school_status so the
+  # sidebar's district and school-type filters keep working on the dots.
+  dots <- hope_school_status %>%
+    mutate(Schl_ID_key = pad_schlid(Schl_ID)) %>%
+    distinct(Schl_ID_key, .keep_all = TRUE) %>%
+    inner_join(closure_coords, by = "Schl_ID_key") %>%
+    select(-Schl_ID_key)
+
+  if (nrow(dots) < nrow(closure_coords)) {
+    warning(sprintf(
+      "%d of %d closed schools in the register had no school_status match and are not plotted.",
+      nrow(closure_coords) - nrow(dots), nrow(closure_coords)
+    ))
+  }
+
+  dots %>%
     mutate(
-      dot_label = ifelse(is.na(close_year),
-                         "Closure approved, not yet effective",
-                         paste0("Last year of operation: ", close_year)),
-      dot_note  = ifelse(is.na(Consolidation_Summary), "",
-                         stringr::str_squish(sub(" \\| .*$", "", Consolidation_Summary)))
+      # Fall back to the register's own end_year where school_status has none.
+      close_year = dplyr::coalesce(close_year, reg_end_year),
+      dot_era    = ifelse(!is.na(close_year) & close_year >= HOPE_START_YEAR,
+                          "post", "pre"),
+      dot_label  = ifelse(is.na(close_year),
+                          "Closure year unknown",
+                          paste0("Last year of operation: ", close_year)),
+      dot_note   = ifelse(is.na(Consolidation_Summary), "",
+                          stringr::str_squish(sub(" \\| .*$", "", Consolidation_Summary)))
     )
 })
 
-message("Hope tab closure dots: ", sum(hope_dots$dot_era != "pending"),
-        " closed, ", sum(hope_dots$dot_era == "pending"), " pending.")
+message("Hope tab closure dots: ", nrow(hope_dots), " closed schools plotted at ",
+        "CCD coordinates (", sum(hope_dots$dot_era == "pre"), " pre-Hope, ",
+        sum(hope_dots$dot_era == "post"), " since ", HOPE_START_YEAR, ").")
 
-# Every dot is drawn in this one color. dot_era is still carried on the data so
-# the "closures since Hope" filter and the Status column in the school table
-# below the map keep working; it just no longer drives the fill.
+# Every dot is drawn in this one color. dot_era is still carried on the data to
+# fill the Status column in the school table below the map; it does not drive
+# the fill and no longer gates which dots are shown.
 HOPE_DOT_COLOR <- "#c0392b"
 
 HOPE_DOT_LABELS <- c(
-  pre     = "Closed before Hope (through 2022)",
-  post    = paste0("Closed since Hope (", HOPE_START_YEAR, "+)"),
-  pending = "Approved, closing soon"
+  pre  = "Closed before Hope (through 2022)",
+  post = paste0("Closed since Hope (", HOPE_START_YEAR, "+)")
 )
 
 # The choropleth is a measure x year pair: the measure picks a column prefix,
 # the year picks the suffix. Growth and closure counts are still computed in
 # hope_county_base and shown in the county table; they are not shading options.
 HOPE_MEASURES <- list(
-  "rate" = list(label    = "Recipients per 100 school-age children",
+  "rate" = list(label    = "Hope Recipients per 100 school-age children",
                 legend   = "Per 100\nschool-age",
                 prefix   = "rate_",
                 accuracy = 0.1),
-  "hope" = list(label    = "Recipients, raw count",
-                legend   = "Recipients",
+  "hope" = list(label    = "Hope Recipients, raw count",
+                legend   = "Hope\nRecipients",
                 prefix   = "hope_",
                 accuracy = 1)
 )
@@ -1562,21 +1632,6 @@ ui <- fluidPage(
                   selected = "2025",
                   inline   = TRUE
                 )
-              ),
-
-              div(
-                style = "flex: 1; min-width: 190px;",
-                selectInput(
-                  "hope_dot_mode",
-                  "Show school dots",
-                  choices = c(
-                    "All closures"                = "all",
-                    "Only closures since Hope"    = "post",
-                    "Hide dots"                   = "none"
-                  ),
-                  selected = "all",
-                  width    = "100%"
-                )
               )
             ),
 
@@ -1596,11 +1651,11 @@ ui <- fluidPage(
             HTML(
               "Recipient counts come from the Hope Scholarship annual reports. Rates use
               Census Population Estimates Program school-age counts as the denominator.
-              Closure records come from the curated school status file.
-              <strong>Dot positions are approximate</strong> &mdash; the source data has no
-              school coordinates, so each dot is scattered at random inside its own county.
-              The county each dot belongs to and the number of dots per county are exact;
-              the spot within the county is not."
+              <strong>Dots are at real school locations</strong> &mdash; latitude and longitude
+              come from the NCES Common Core of Data school directory, matched by NCES ID
+              in WV_School_Closures_Register.xlsx. Only the 139 schools the register marks
+              <em>Closed</em> are plotted; schools approved for closure but still operating,
+              and buildings whose school record continued, are not shown."
             )
           ),
 
@@ -1614,7 +1669,7 @@ ui <- fluidPage(
           br(),
 
           h4("Schools behind the dots", style = "margin-bottom: 4px;"),
-          p("Every school currently plotted, with its closure year and consolidation note.",
+          p("Every school currently plotted, with its closure year, CCD coordinates, and consolidation note.",
             style = "font-size: 12px; color: #666;"),
           DTOutput("hope_school_table")
         ),
@@ -1752,6 +1807,34 @@ ui <- fluidPage(
               population only declines by about 1.7% (from 60,000 people to 59,000 people, or a population index from 100 to 98.3). 
     This shows that enrollment is falling faster than the underlying population.",
               style = "font-size: 13px; color: #555; margin-top: 10px;"
+            ),
+
+            hr(),
+
+            # Indexing is the default because it puts every district on one
+            # comparable footing. Raw counts are the escape hatch for "how many
+            # students is that actually", and have to be log-scaled: Kanawha's
+            # county population (173,906) is roughly 200x Wirt's enrollment
+            # (831), so a shared linear axis would flatten the small counties
+            # into a line along the bottom.
+            div(
+              style = "max-width: 420px;",
+              selectInput(
+                "pop_plot_mode",
+                "Y-axis",
+                choices = c(
+                  "Indexed to 100 at base year (percent change)" = "index",
+                  "Raw counts, log scale"                        = "raw"
+                ),
+                selected = "index",
+                width    = "100%"
+              )
+            ),
+
+            p(
+              "All district panels share one y-axis in both modes, so the panels can be
+              read against each other rather than each being rescaled to fill its own box.",
+              style = "font-size: 12px; color: #666; margin: 0;"
             )
           ),
           plotOutput("did_plot_pop")
@@ -1843,11 +1926,9 @@ server <- function(input, output, session) {
   # =========================
   # HOPE SCHOLARSHIP & CLOSURES MAP
   # =========================
-  # Dots respond to all three sidebar filters plus the tab's own dot-mode select.
-  # Pending closures have no end_year, so the year slider cannot filter them;
-  # they are kept whenever the slider still reaches the present.
-  # Sidebar filters only. Kept separate from the dot-visibility toggle so that
-  # hiding the dots does not also blank out the "Schools closed" choropleth.
+  # Dots respond to all three sidebar filters. Every dot is a completed closure
+  # with a real closure year, so the year slider filters them directly; the rare
+  # row with no close_year is kept rather than silently dropped.
   hope_dots_in_scope <- reactive({
     df <- hope_dots
     if (nrow(df) == 0) return(df)
@@ -1862,24 +1943,18 @@ server <- function(input, output, session) {
 
     yr <- input$year_range
     if (!is.null(yr)) {
-      last_close <- suppressWarnings(max(hope_dots$close_year, na.rm = TRUE))
-      if (!is.finite(last_close)) last_close <- yr[2]
       df <- df %>%
-        filter(
-          (!is.na(close_year) & close_year >= yr[1] & close_year <= yr[2]) |
-            (is.na(close_year) & yr[2] >= last_close)
-        )
+        filter(is.na(close_year) | (close_year >= yr[1] & close_year <= yr[2]))
     }
 
     df
   })
 
-  # Adds the tab's own dot-mode select on top of the sidebar filters.
+  # Every closure in scope is drawn. Kept as its own reactive (rather than using
+  # hope_dots_in_scope() directly) so the map and the school table below it stay
+  # on one definition of "the dots".
   hope_dots_filtered <- reactive({
-    df <- hope_dots_in_scope()
-    if (identical(input$hope_dot_mode, "post")) df <- df %>% filter(dot_era != "pre")
-    if (identical(input$hope_dot_mode, "none")) df <- df[0, , drop = FALSE]
-    df
+    hope_dots_in_scope()
   })
 
   # County polygons joined to the Hope metrics. The "n_closed" metric counts the
@@ -1887,7 +1962,6 @@ server <- function(input, output, session) {
   # the same records as the dots without being tied to whether dots are visible.
   hope_map_sf <- reactive({
     closed_in_range <- hope_dots_in_scope() %>%
-      filter(dot_era != "pending") %>%
       count(District, name = "n_closed")
 
     tbl <- hope_county_base %>%
@@ -1960,7 +2034,8 @@ server <- function(input, output, session) {
         title    = paste0(meta$label, "  —  ", year_label),
         subtitle = subtitle,
         caption  = paste0(
-          "Dots are scattered inside their county, not placed at real addresses. ",
+          "Dots are actual school locations from the NCES CCD directory (WGS84). ",
+          "Completed closures only — schools approved but still operating are not plotted. ",
           "Rate denominators use ", hope_pop_year, " Census PEP school-age population."
         )
       ) +
@@ -2021,8 +2096,10 @@ server <- function(input, output, session) {
         County         = District,
         School         = School,
         `Grade level`  = Type,
-        `Final year`   = ifelse(is.na(close_year), "pending", as.character(close_year)),
+        `Final year`   = ifelse(is.na(close_year), "unknown", as.character(close_year)),
         Status         = unname(HOPE_DOT_LABELS[as.character(dot_era)]),
+        Latitude       = round(lat, 5),
+        Longitude      = round(lon, 5),
         Note           = dot_note
       ) %>%
       datatable(
@@ -2397,10 +2474,12 @@ server <- function(input, output, session) {
   
   
   output$did_plot_pop <- renderPlot({
-    
+
     df <- plot_data_cons()
     req(nrow(df) > 0)
-    
+
+    pop_mode <- input$pop_plot_mode %||% "index"
+
     df <- df %>%
       arrange(facet_label, Year) %>%
       group_by(facet_label) %>%
@@ -2432,9 +2511,26 @@ server <- function(input, output, session) {
         !is.na(enrollment_index),
         !is.na(population_index)
       )
-    
+
+    # One set of y_* columns feeds the layers in both modes, so the geoms below
+    # are written once. In raw mode the axis is log10, which cannot take zero or
+    # a negative, so non-positive counts are dropped rather than silently
+    # becoming -Inf and vanishing with a warning.
+    df <- df %>%
+      mutate(
+        y_enroll = if (pop_mode == "raw") as.numeric(enrollment)         else enrollment_index,
+        y_pop    = if (pop_mode == "raw") as.numeric(population)         else population_index,
+        y_school = if (pop_mode == "raw") as.numeric(school_age_pop_pep) else school_age_pep_index
+      )
+
+    if (pop_mode == "raw") {
+      df <- df %>%
+        filter(!is.na(y_enroll), y_enroll > 0, !is.na(y_pop), y_pop > 0) %>%
+        mutate(y_school = ifelse(!is.na(y_school) & y_school > 0, y_school, NA_real_))
+    }
+
     req(nrow(df) > 0)
-    
+
     vlines <- df %>%
       distinct(facet_label, threshold)
 
@@ -2452,7 +2548,7 @@ server <- function(input, output, session) {
     # here because the question is about timing relative to closures.
     # The ACS series is still loaded and joined; re-adding its layer is a small
     # edit if you want both on the chart again.
-    school_age_pep_df  <- df %>% filter(!is.na(school_age_pep_index))
+    school_age_pep_df  <- df %>% filter(!is.na(y_school))
     has_school_age_pep <- nrow(school_age_pep_df) > 0
 
     series_breaks <- c("pre", "post", "Total population")
@@ -2472,21 +2568,21 @@ server <- function(input, output, session) {
 
     ggplot(df, aes(x = Year)) +
       geom_line(
-        aes(y = enrollment_index, color = period, group = 1),
+        aes(y = y_enroll, color = period, group = 1),
         linewidth = 0.7
       ) +
       geom_point(
-        aes(y = enrollment_index, color = period),
+        aes(y = y_enroll, color = period),
         size = 1.8
       ) +
       geom_line(
-        aes(y = population_index, color = "Total population", group = 1),
+        aes(y = y_pop, color = "Total population", group = 1),
         linewidth = 0.9
       ) +
       (if (has_school_age_pep) {
         geom_line(
           data = school_age_pep_df,
-          aes(y = school_age_pep_index,
+          aes(y = y_school,
               color = "School-age PEP",
               group = 1),
           linewidth = 0.9,
@@ -2501,7 +2597,16 @@ server <- function(input, output, session) {
         color = "gray50",
         linewidth = 0.4
       ) +
-      facet_wrap(~facet_label, ncol = 3, scales = "free_y") +
+      # Fixed y across panels in both modes: districts are meant to be compared
+      # with each other here, and free_y silently rescales every panel to fill
+      # its own box, which makes a 2% drop and a 30% drop look identical.
+      facet_wrap(~facet_label, ncol = 3, scales = "fixed") +
+      (if (pop_mode == "raw") {
+        # Log10 because the raw counts span roughly 200x from Wirt's enrollment
+        # to Kanawha's county population. On a shared linear axis the small
+        # counties would collapse onto the bottom of every panel.
+        scale_y_log10(labels = scales::label_comma())
+      } else NULL) +
       scale_color_manual(
         values = c(
           "pre"              = "#2b6cb0",
@@ -2515,13 +2620,17 @@ server <- function(input, output, session) {
       labs(
         title = "Enrollment and Population Trends Around First Closure",
         subtitle = paste0(
-          "Enrollment reflects ", school_type_label,
-          ". All series indexed to 100 at their first available year.\n",
+          "Enrollment reflects ", school_type_label, ". ",
+          if (pop_mode == "raw") {
+            "Raw counts on a shared log10 axis.\n"
+          } else {
+            "All series indexed to 100 at their first available year.\n"
+          },
           "Population series are Census PEP; note the 2020 vintage rebenchmark ",
           "creates a small step in both."
         ),
         x = NULL,
-        y = "Index (Base Year = 100)",
+        y = if (pop_mode == "raw") "People (log scale)" else "Index (Base Year = 100)",
         color = NULL
       ) +
       theme_minimal(base_size = 10) +
