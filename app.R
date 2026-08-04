@@ -1590,19 +1590,16 @@ ui <- fluidPage(
             h4("What this map shows", style = "margin-top: 0;"),
 
             p(
-              "County shading shows Hope Scholarship take-up, West Virginia's education
-              savings account program, which began paying out in school year 2022-23.
-              Dots mark individual schools that have closed or are slated to close, colored
-              by whether the closure came before or after Hope money started flowing.",
+              "County shading shows Hope Scholarship recipients counts or per 100 school-age population, which began in school year 2022-23.
+              Dots mark individual schools that have closed or are stated to close",
               style = "font-size: 13px;"
             ),
 
             p(
-              HTML("<strong>Sidebar filters apply here.</strong> District and School Grade
+              HTML("District and School Grade
               Level filter which closure dots appear; the Year range slider filters dots by
-              the school's final year of operation. County shading reflects the Hope metric
-              you pick below and is not affected by the sidebar filters, since Hope recipient
-              counts are only published for SY 2022-23 through 2024-25."),
+              the school's final year of operation. County shading reflects the metric of Hope recipients
+              you pick below and is not affected by the sidebar filters."),
               style = "font-size: 13px;"
             ),
 
@@ -1634,14 +1631,6 @@ ui <- fluidPage(
                 )
               )
             ),
-
-            p(
-              HTML("The color scale is <strong>held fixed across all three years</strong>,
-              so switching years shows the program actually growing rather than
-              re-shading each year to look the same. Statewide recipients went
-              2,333 &rarr; 5,443 &rarr; 10,530, so SY 2022-23 reads pale on purpose."),
-              style = "font-size: 12px; color: #555; margin: 8px 0 0;"
-            )
           ),
 
           plotOutput("hope_map", height = "620px"),
@@ -1649,13 +1638,9 @@ ui <- fluidPage(
           div(
             style = "font-size: 11px; color: #666; margin-top: 10px; line-height: 1.5;",
             HTML(
-              "Recipient counts come from the Hope Scholarship annual reports. Rates use
-              Census Population Estimates Program school-age counts as the denominator.
-              <strong>Dots are at real school locations</strong> &mdash; latitude and longitude
-              come from the NCES Common Core of Data school directory, matched by NCES ID
-              in WV_School_Closures_Register.xlsx. Only the 139 schools the register marks
-              <em>Closed</em> are plotted; schools approved for closure but still operating,
-              and buildings whose school record continued, are not shown."
+              "Recipient counts come from the Hope Scholarship annual reports. School-age (5-17 years old) population data comes from the Census Bureau's
+              Population Estimates Program.
+              Dots show the geolocations of public K-12 schools that have closed 2011-2025."
             )
           ),
 
@@ -1665,13 +1650,6 @@ ui <- fluidPage(
           p("Sorted by the selected metric. Reflects the sidebar filters.",
             style = "font-size: 12px; color: #666;"),
           DTOutput("hope_county_table"),
-
-          br(),
-
-          h4("Schools behind the dots", style = "margin-bottom: 4px;"),
-          p("Every school currently plotted, with its closure year, CCD coordinates, and consolidation note.",
-            style = "font-size: 12px; color: #666;"),
-          DTOutput("hope_school_table")
         ),
 
         tabPanel(
@@ -1830,12 +1808,6 @@ ui <- fluidPage(
                 width    = "100%"
               )
             ),
-
-            p(
-              "All district panels share one y-axis in both modes, so the panels can be
-              read against each other rather than each being rescaled to fill its own box.",
-              style = "font-size: 12px; color: #666; margin: 0;"
-            )
           ),
           plotOutput("did_plot_pop")
         )
@@ -2018,26 +1990,10 @@ server <- function(input, output, session) {
     # early years pale by design; the number keeps the magnitude unambiguous.
     statewide <- sum(hope_county_base[[paste0("hope_", year_id)]], na.rm = TRUE)
 
-    # Stands in for the dot legend, which is gone now that all dots share a color.
-    subtitle <- sprintf(
-      "%s statewide recipients  ·  dots: %s school closure%s%s",
-      scales::comma(statewide),
-      scales::comma(nrow(dots)),
-      ifelse(nrow(dots) == 1, "", "s"),
-      if (!is.null(input$year_range)) {
-        sprintf(", %d–%d", input$year_range[1], input$year_range[2])
-      } else ""
-    )
 
     p +
       labs(
-        title    = paste0(meta$label, "  —  ", year_label),
-        subtitle = subtitle,
-        caption  = paste0(
-          "Dots are actual school locations from the NCES CCD directory (WGS84). ",
-          "Completed closures only — schools approved but still operating are not plotted. ",
-          "Rate denominators use ", hope_pop_year, " Census PEP school-age population."
-        )
+        title    = paste0(meta$label, " in ", year_label)
       ) +
       coord_sf(expand = FALSE) +
       theme_void(base_size = 13) +
@@ -2319,7 +2275,11 @@ server <- function(input, output, session) {
         color = "gray50",
         linewidth = 0.4
       ) +
-      facet_wrap(~facet_label, scales = "free_y", ncol = 3) +
+      # Shared y-axis: every district panel is drawn on the same enrollment
+      # range so districts can be compared against each other, not just against
+      # their own history.
+      facet_wrap(~facet_label, scales = "fixed", ncol = 3) +
+      scale_y_continuous(limits = c(0, NA), labels = scales::comma) +
       scale_color_manual(values = c("pre" = "#2b6cb0", "post" = "#c53030")) +
       theme_minimal(base_size = 10) +
       theme(aspect.ratio = 0.7)
@@ -2347,7 +2307,10 @@ server <- function(input, output, session) {
         color = "gray50",
         linewidth = 0.4
       ) +
-      facet_wrap(~facet_label, scales = "free_y", ncol = 3) +
+      # Same shared y-axis as did_plot_1, so the two tabs are directly
+      # comparable panel for panel.
+      facet_wrap(~facet_label, scales = "fixed", ncol = 3) +
+      scale_y_continuous(limits = c(0, NA), labels = scales::comma) +
       scale_color_manual(values = c("pre" = "#2b6cb0", "post" = "#c53030")) +
       labs(
         title = "Pre/post enrollment (threshold = one year before first consolidation)",
@@ -2533,21 +2496,6 @@ server <- function(input, output, session) {
 
     vlines <- df %>%
       distinct(facet_label, threshold)
-
-    # The school-age series is optional (see wv_school_age_2011_2024.csv at the
-    # top of this file). When it is absent the layer must be dropped entirely
-    # rather than fed an empty frame: a constant colour aesthetic against zero
-    # rows is a length mismatch and ggplot errors out. Its legend key is
-    # dropped alongside it so the legend never advertises a missing line.
-    # School-age 5-17 is plotted from PEP rather than ACS. Both were compared
-    # over all 770 county-years (see census_data.qmd): they correlate at 0.999,
-    # but ACS is noisier in small counties (mean |YoY| 1.89% vs 1.71%, driven by
-    # sampling error above 14% of the estimate in Gilmer, Wirt and Calhoun) and
-    # lags roughly two years, so in a declining population it overstates the
-    # current level by about 2%. PEP is annual and point-in-time, which matters
-    # here because the question is about timing relative to closures.
-    # The ACS series is still loaded and joined; re-adding its layer is a small
-    # edit if you want both on the chart again.
     school_age_pep_df  <- df %>% filter(!is.na(y_school))
     has_school_age_pep <- nrow(school_age_pep_df) > 0
 
@@ -2626,8 +2574,7 @@ server <- function(input, output, session) {
           } else {
             "All series indexed to 100 at their first available year.\n"
           },
-          "Population series are Census PEP; note the 2020 vintage rebenchmark ",
-          "creates a small step in both."
+          "County total population and school-age (5-17 years old) population are estimates from Census Population Estimates Program (PEP)."
         ),
         x = NULL,
         y = if (pop_mode == "raw") "People (log scale)" else "Index (Base Year = 100)",
