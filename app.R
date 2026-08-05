@@ -1104,7 +1104,9 @@ message("Loaded Hope Scholarship recipients for ", nrow(hope_recipients),
         " counties; SY 24-25 statewide total = ",
         format(sum(hope_recipients$hope_2025), big.mark = ","), ".")
 
-# Latest school-age population from the PEP series, used as the rate denominator.
+# Latest school-age population from the PEP series. No longer the rate
+# denominator - the rates are year-matched now - but kept as a single "current
+# size of the school-age cohort" figure for the county-level labels.
 hope_pop_year <- suppressWarnings(max(school_age_pep_raw$year, na.rm = TRUE))
 if (!is.finite(hope_pop_year)) hope_pop_year <- NA_integer_
 
@@ -1120,6 +1122,26 @@ hope_school_age <- if (is.na(hope_pop_year)) {
     distinct(District, .keep_all = TRUE)
 }
 
+# The same PEP series held one column per Hope school year. These are both the
+# denominators for the rate columns and display columns in the county table, so
+# every "per 100" figure can be checked against the two numbers beside it.
+# Years match HOPE_YEARS, defined further down with the year selector.
+HOPE_POP_YEARS <- c(2023L, 2024L, 2025L)
+
+hope_school_age_by_year <- school_age_pep_raw %>%
+  filter(as.integer(year) %in% HOPE_POP_YEARS) %>%
+  transmute(
+    District = stringr::str_squish(as.character(county)),
+    year     = as.integer(year),
+    pop      = as.numeric(school_age_pop_pep)
+  ) %>%
+  distinct(District, year, .keep_all = TRUE) %>%
+  tidyr::pivot_wider(
+    names_from   = year,
+    values_from  = pop,
+    names_prefix = "school_age_"
+  )
+
 # First school year in which Hope money was disbursed. Closures with an end_year
 # at or after this are "post-Hope" for the dot coloring.
 HOPE_START_YEAR <- 2023L
@@ -1131,6 +1153,15 @@ hope_school_status <- school_status %>%
     is_closed  = dplyr::coalesce(Closed_curated,   closed),
     close_year = dplyr::coalesce(End_year_curated, end_year)
   )
+
+# Recipients per 100 school-age children. A county with no usable denominator
+# gets NA rather than a divide-by-zero, which the map draws in the grey
+# na.value and the table leaves blank.
+hope_rate <- function(recipients, school_age) {
+  ifelse(is.na(school_age) | school_age == 0,
+         NA_real_,
+         100 * recipients / school_age)
+}
 
 # County-level table driving the choropleth. Built off district_shapes so every
 # mapped county has a row even if it is missing from the Hope workbook.
@@ -1144,20 +1175,24 @@ hope_county_base <- district_shapes %>%
   distinct(District) %>%
   left_join(hope_recipients, by = "District") %>%
   left_join(hope_school_age, by = "District") %>%
+  left_join(hope_school_age_by_year, by = "District") %>%
   mutate(
     across(c(hope_2023, hope_2024, hope_2025), ~ tidyr::replace_na(.x, 0L)),
-    # One rate per school year so the year selector can shade any of the three.
-    # The denominator is the same PEP school-age count in all three years, so
-    # these are comparable across years by construction.
-    no_denom   = is.na(school_age_pop) | school_age_pop == 0,
-    rate_2023  = ifelse(no_denom, NA_real_, 100 * hope_2023 / school_age_pop),
-    rate_2024  = ifelse(no_denom, NA_real_, 100 * hope_2024 / school_age_pop),
-    rate_2025  = ifelse(no_denom, NA_real_, 100 * hope_2025 / school_age_pop),
+    # One rate per school year, each divided by that same year's PEP school-age
+    # count. Every rate is therefore reproducible from the two columns sitting
+    # next to it in the county table.
+    #
+    # This does mean the denominator moves between years - it fell about 2%
+    # statewide from 2023 to 2025 - so part of any rise in the rate is the
+    # school-age population shrinking rather than more students taking Hope.
+    # Compare the raw-count measure alongside it to separate the two.
+    rate_2023  = hope_rate(hope_2023, school_age_2023),
+    rate_2024  = hope_rate(hope_2024, school_age_2024),
+    rate_2025  = hope_rate(hope_2025, school_age_2025),
     growth     = hope_2025 - hope_2023,
     growth_pct = ifelse(hope_2023 == 0, NA_real_,
                         100 * (hope_2025 - hope_2023) / hope_2023)
-  ) %>%
-  select(-no_denom)
+  )
 
 # Warn loudly if the Hope workbook and the shapefile disagree on county names,
 # since a silent mismatch would show up as a blank county on the map.
@@ -1300,6 +1335,32 @@ hope_dots <- local({
 message("Hope tab closure dots: ", nrow(hope_dots), " closed schools plotted at ",
         "CCD coordinates (", sum(hope_dots$dot_era == "pre"), " pre-Hope, ",
         sum(hope_dots$dot_era == "post"), " since ", HOPE_START_YEAR, ").")
+
+# Closures per county, counted once from the full register at startup and NOT
+# from the filtered reactive. The county table is meant to be a fixed reference
+# for "how many schools has this county closed", so this column always totals
+# nrow(hope_dots) no matter what the sidebar is set to. The dots on the map
+# still respond to the filters; the table deliberately does not, and the table's
+# caption says so.
+hope_closed_by_district <- hope_dots %>%
+  count(District, name = "n_closed")
+
+hope_county_base <- hope_county_base %>%
+  left_join(hope_closed_by_district, by = "District") %>%
+  mutate(n_closed = tidyr::replace_na(n_closed, 0L))
+
+# A closure whose District never matches a shapefile county would be dropped
+# from the table while its dot still plots, so the column would quietly total
+# less than the map subtitle. Say so at startup rather than letting it pass.
+if (sum(hope_county_base$n_closed) != nrow(hope_dots)) {
+  warning(sprintf(
+    paste0("Hope county table: closure counts total %d but %d schools are ",
+           "plotted. District name(s) not matching a shapefile county: %s"),
+    sum(hope_county_base$n_closed), nrow(hope_dots),
+    paste(setdiff(unique(hope_dots$District), hope_county_base$District),
+          collapse = ", ")
+  ))
+}
 
 # Every dot is drawn in this one color. dot_era is still carried on the data to
 # fill the Status column in the school table below the map; it does not drive
@@ -1647,7 +1708,7 @@ ui <- fluidPage(
           hr(),
 
           h4("Counties in view", style = "margin-bottom: 4px;"),
-          p("Sorted by the selected metric. Reflects the sidebar filters.",
+          p(HTML("click any header to sort the table."),
             style = "font-size: 12px; color: #666;"),
           DTOutput("hope_county_table"),
         ),
@@ -1787,27 +1848,6 @@ ui <- fluidPage(
               style = "font-size: 13px; color: #555; margin-top: 10px;"
             ),
 
-            hr(),
-
-            # Indexing is the default because it puts every district on one
-            # comparable footing. Raw counts are the escape hatch for "how many
-            # students is that actually", and have to be log-scaled: Kanawha's
-            # county population (173,906) is roughly 200x Wirt's enrollment
-            # (831), so a shared linear axis would flatten the small counties
-            # into a line along the bottom.
-            div(
-              style = "max-width: 420px;",
-              selectInput(
-                "pop_plot_mode",
-                "Y-axis",
-                choices = c(
-                  "Indexed to 100 at base year (percent change)" = "index",
-                  "Raw counts, log scale"                        = "raw"
-                ),
-                selected = "index",
-                width    = "100%"
-              )
-            ),
           ),
           plotOutput("did_plot_pop")
         )
@@ -1929,16 +1969,13 @@ server <- function(input, output, session) {
     hope_dots_in_scope()
   })
 
-  # County polygons joined to the Hope metrics. The "n_closed" metric counts the
-  # closures inside the sidebar's district/type/year scope, so the shading tracks
-  # the same records as the dots without being tied to whether dots are visible.
+  # County polygons joined to the Hope metrics. Everything here is static: the
+  # recipient counts, the rates, and now "n_closed" all come straight off
+  # hope_county_base, which is built once at startup. Nothing in this reactive
+  # reads the sidebar, so the county table underneath the map cannot drift out
+  # of step with the register's 139 closures.
   hope_map_sf <- reactive({
-    closed_in_range <- hope_dots_in_scope() %>%
-      count(District, name = "n_closed")
-
-    tbl <- hope_county_base %>%
-      left_join(closed_in_range, by = "District") %>%
-      mutate(n_closed = tidyr::replace_na(n_closed, 0L))
+    tbl <- hope_county_base
 
     district_shapes %>%
       mutate(District = stringr::str_squish(stringr::str_remove(
@@ -1977,11 +2014,22 @@ server <- function(input, output, session) {
     if (nrow(dots) > 0) {
       # Single-color dots. The white halo underneath keeps them readable on the
       # darkest counties without needing a color encoding.
+      #
+      # Both layers are semi-transparent and slightly smaller than they used to
+      # be. At state scale a solid dot is wider than the distance between
+      # schools in the same town - Clarksburg alone has seven closures inside
+      # ~5km - so opaque dots sat on top of each other and the map read as far
+      # fewer than the count in the subtitle. With alpha, overlapping dots
+      # darken instead of hiding, so a cluster is visible as a cluster. The halo
+      # is faded harder than the dot: at full opacity it would mask the dots
+      # underneath it, which is the same problem one layer up.
       p <- p +
         geom_point(data = dots, aes(x = lon, y = lat),
-                   colour = "white", size = 2.6, show.legend = FALSE) +
+                   colour = "white", size = 2.3, alpha = 0.40,
+                   show.legend = FALSE) +
         geom_point(data = dots, aes(x = lon, y = lat),
-                   colour = HOPE_DOT_COLOR, size = 1.7, show.legend = FALSE)
+                   colour = HOPE_DOT_COLOR, size = 1.5, alpha = 0.65,
+                   show.legend = FALSE)
     }
 
     year_label <- names(HOPE_YEARS)[match(year_id, HOPE_YEARS)]
@@ -2009,29 +2057,30 @@ server <- function(input, output, session) {
   })
 
   # County-level numbers behind the shading. Shows all three years side by side
-  # regardless of which one is mapped, sorted by the year currently selected.
+  # regardless of which one is mapped. Sorted alphabetically by county so a
+  # reader can find a specific county without knowing where it ranks; the column
+  # headers are still clickable for anyone who wants a ranking instead.
   output$hope_county_table <- renderDT({
-    measure_id <- input$hope_metric %||% "rate"
-    year_id    <- input$hope_year   %||% "2025"
-    sort_col   <- paste0(HOPE_MEASURES[[measure_id]]$prefix, year_id)
-
     shp <- hope_map_sf() %>% sf::st_drop_geometry()
-    req(sort_col %in% names(shp))
+    req(nrow(shp) > 0)
 
     shp %>%
-      arrange(desc(.data[[sort_col]])) %>%
+      arrange(District) %>%
+      # Grouped by measure, not by year: all three recipient counts, then all
+      # three denominators, then all three rates. Reading across a block is a
+      # time series; reading down a column compares counties.
       transmute(
-        County                 = District,
-        `Recip. 22-23`         = hope_2023,
-        `Recip. 23-24`         = hope_2024,
-        `Recip. 24-25`         = hope_2025,
-        `Per 100, 22-23`       = round(rate_2023, 2),
-        `Per 100, 23-24`       = round(rate_2024, 2),
-        `Per 100, 24-25`       = round(rate_2025, 2),
-        `Growth 22-23→24-25`   = growth,
-        `Growth %`             = round(growth_pct),
-        `School-age pop.`      = school_age_pop,
-        `Schools closed`       = n_closed
+        County                    = District,
+        `Hope Recip. 22-23`       = hope_2023,
+        `Hope Recip. 23-24`       = hope_2024,
+        `Hope Recip. 24-25`       = hope_2025,
+        `School-age pop. 22-23`   = school_age_2023,
+        `School-age pop. 23-24`   = school_age_2024,
+        `School-age pop. 24-25`   = school_age_2025,
+        `Hope Recip. per 100, 22-23` = round(rate_2023, 2),
+        `Hope Recip. per 100, 23-24` = round(rate_2024, 2),
+        `Hope Recip. per 100, 24-25` = round(rate_2025, 2),
+        `Schools closed`          = n_closed
       ) %>%
       datatable(
         rownames = FALSE,
@@ -2275,11 +2324,13 @@ server <- function(input, output, session) {
         color = "gray50",
         linewidth = 0.4
       ) +
-      # Shared y-axis: every district panel is drawn on the same enrollment
-      # range so districts can be compared against each other, not just against
-      # their own history.
-      facet_wrap(~facet_label, scales = "fixed", ncol = 3) +
-      scale_y_continuous(limits = c(0, NA), labels = scales::comma) +
+      # Per-panel y-axis. A shared axis was tried and abandoned: Kanawha runs
+      # about 25,000 students against roughly 800 in the smallest districts, so
+      # one scale flattened most panels into a straight line. The cost is that
+      # slopes are not comparable between panels - each panel shows the shape of
+      # one district's trend, not its size relative to the others.
+      facet_wrap(~facet_label, scales = "free_y", ncol = 3) +
+      scale_y_continuous(labels = scales::comma) +
       scale_color_manual(values = c("pre" = "#2b6cb0", "post" = "#c53030")) +
       theme_minimal(base_size = 10) +
       theme(aspect.ratio = 0.7)
@@ -2307,10 +2358,10 @@ server <- function(input, output, session) {
         color = "gray50",
         linewidth = 0.4
       ) +
-      # Same shared y-axis as did_plot_1, so the two tabs are directly
-      # comparable panel for panel.
-      facet_wrap(~facet_label, scales = "fixed", ncol = 3) +
-      scale_y_continuous(limits = c(0, NA), labels = scales::comma) +
+      # Per-panel y-axis, matching did_plot_1 so the two tabs stay comparable
+      # panel for panel.
+      facet_wrap(~facet_label, scales = "free_y", ncol = 3) +
+      scale_y_continuous(labels = scales::comma) +
       scale_color_manual(values = c("pre" = "#2b6cb0", "post" = "#c53030")) +
       labs(
         title = "Pre/post enrollment (threshold = one year before first consolidation)",
@@ -2441,8 +2492,6 @@ server <- function(input, output, session) {
     df <- plot_data_cons()
     req(nrow(df) > 0)
 
-    pop_mode <- input$pop_plot_mode %||% "index"
-
     df <- df %>%
       arrange(facet_label, Year) %>%
       group_by(facet_label) %>%
@@ -2475,22 +2524,14 @@ server <- function(input, output, session) {
         !is.na(population_index)
       )
 
-    # One set of y_* columns feeds the layers in both modes, so the geoms below
-    # are written once. In raw mode the axis is log10, which cannot take zero or
-    # a negative, so non-positive counts are dropped rather than silently
-    # becoming -Inf and vanishing with a warning.
+    # One set of y_* columns feeds the layers below, so each geom names a single
+    # column rather than choosing a series inline.
     df <- df %>%
       mutate(
-        y_enroll = if (pop_mode == "raw") as.numeric(enrollment)         else enrollment_index,
-        y_pop    = if (pop_mode == "raw") as.numeric(population)         else population_index,
-        y_school = if (pop_mode == "raw") as.numeric(school_age_pop_pep) else school_age_pep_index
+        y_enroll = enrollment_index,
+        y_pop    = population_index,
+        y_school = school_age_pep_index
       )
-
-    if (pop_mode == "raw") {
-      df <- df %>%
-        filter(!is.na(y_enroll), y_enroll > 0, !is.na(y_pop), y_pop > 0) %>%
-        mutate(y_school = ifelse(!is.na(y_school) & y_school > 0, y_school, NA_real_))
-    }
 
     req(nrow(df) > 0)
 
@@ -2545,16 +2586,10 @@ server <- function(input, output, session) {
         color = "gray50",
         linewidth = 0.4
       ) +
-      # Fixed y across panels in both modes: districts are meant to be compared
-      # with each other here, and free_y silently rescales every panel to fill
-      # its own box, which makes a 2% drop and a 30% drop look identical.
+      # Fixed y across panels: districts are meant to be compared with each
+      # other here, and free_y silently rescales every panel to fill its own
+      # box, which makes a 2% drop and a 30% drop look identical.
       facet_wrap(~facet_label, ncol = 3, scales = "fixed") +
-      (if (pop_mode == "raw") {
-        # Log10 because the raw counts span roughly 200x from Wirt's enrollment
-        # to Kanawha's county population. On a shared linear axis the small
-        # counties would collapse onto the bottom of every panel.
-        scale_y_log10(labels = scales::label_comma())
-      } else NULL) +
       scale_color_manual(
         values = c(
           "pre"              = "#2b6cb0",
@@ -2569,15 +2604,11 @@ server <- function(input, output, session) {
         title = "Enrollment and Population Trends Around First Closure",
         subtitle = paste0(
           "Enrollment reflects ", school_type_label, ". ",
-          if (pop_mode == "raw") {
-            "Raw counts on a shared log10 axis.\n"
-          } else {
-            "All series indexed to 100 at their first available year.\n"
-          },
+          "All series indexed to 100 at their first available year.\n",
           "County total population and school-age (5-17 years old) population are estimates from Census Population Estimates Program (PEP)."
         ),
         x = NULL,
-        y = if (pop_mode == "raw") "People (log scale)" else "Index (Base Year = 100)",
+        y = "Index (Base Year = 100)",
         color = NULL
       ) +
       theme_minimal(base_size = 10) +
