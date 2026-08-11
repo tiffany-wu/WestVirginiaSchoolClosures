@@ -1066,6 +1066,18 @@ district_shapes <- sf::st_transform(district_shapes, 4326)
 # explanatory message instead of a map, so a fresh clone still runs.
 hope_path <- "Hope Recipients by County 2022-2025.xlsx"
 
+# Public landing page for the reports the recipient counts are taken from.
+# Kept as a constant so every citation in the UI points at the same URL and
+# only one line has to change if the state moves the page.
+HOPE_REPORT_URL <- "https://hopescholarshipwv.gov/Home/About/Annual-Reports"
+
+# Renders the citation as a clickable link. Use this anywhere the annual
+# reports are cited rather than pasting an <a> tag inline.
+hope_report_link <- function(text = "Hope Scholarship annual reports") {
+  sprintf('<a href="%s" target="_blank" rel="noopener">%s</a>',
+          HOPE_REPORT_URL, text)
+}
+
 hope_recipients <- local({
   if (!file.exists(hope_path)) {
     warning(hope_path, " not found - the Hope Scholarship tab will be empty.")
@@ -1692,18 +1704,19 @@ ui <- fluidPage(
                   inline   = TRUE
                 )
               )
-            ),
+            )
           ),
 
           plotOutput("hope_map", height = "620px"),
 
           div(
             style = "font-size: 11px; color: #666; margin-top: 10px; line-height: 1.5;",
-            HTML(
-              "Hope Scholarship recipient headcounts come from the Hope Scholarship annual reports. School-age (5-17 years old) population data comes from the Census Bureau's
+            HTML(paste0(
+              "Hope Scholarship recipient headcounts come from the ", hope_report_link(),
+              ". School-age (5-17 years old) population data comes from the Census Bureau's
               Population Estimates Program.
               Dots show the geolocations of public PK-12 schools that have closed 2011-2025."
-            )
+            ))
           ),
 
           hr(),
@@ -1711,7 +1724,7 @@ ui <- fluidPage(
           h4("Counties in view", style = "margin-bottom: 4px;"),
           p(HTML("click any header to sort the table."),
             style = "font-size: 12px; color: #666;"),
-          DTOutput("hope_county_table"),
+          DTOutput("hope_county_table")
         ),
 
         tabPanel(
