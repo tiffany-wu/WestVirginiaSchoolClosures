@@ -6,6 +6,7 @@
 # setwd("//soe-shared.m.storage.umich.edu/soe-shared/Boston PK3/step3/Tiffany/West Virginia Project")
 
 # Read in libraries
+
 library(shiny)
 library(dplyr)
 library(tidyr)
@@ -1376,8 +1377,8 @@ HOPE_DOT_LABELS <- c(
 # the year picks the suffix. Growth and closure counts are still computed in
 # hope_county_base and shown in the county table; they are not shading options.
 HOPE_MEASURES <- list(
-  "rate" = list(label    = "Hope Recipients per 100 school-age children",
-                legend   = "Per 100\nschool-age",
+  "rate" = list(label    = "Hope Recipients per 100 School-Age Children",
+                legend   = "Per 100\nSchool-Age\nChildren",
                 prefix   = "rate_",
                 accuracy = 0.1),
   "hope" = list(label    = "Hope Recipients, raw count",
@@ -1644,14 +1645,14 @@ ui <- fluidPage(
           )
         ),
         tabPanel(
-          "Hope Scholarship & Closures",
+          "Hope Scholarship & School Closures",
           div(
             style = "background-color: #f7fbff; padding: 12px; border-radius: 6px; margin-bottom: 15px;",
 
             h4("What this map shows", style = "margin-top: 0;"),
 
             p(
-              "County shading shows Hope Scholarship recipients counts or per 100 school-age population, which began in school year 2022-23.
+              "County shading shows Hope Scholarship recipients counts or per 100 school-age children, which began in school year 2022-23.
               Dots mark individual schools that have closed or are stated to close",
               style = "font-size: 13px;"
             ),
@@ -1699,9 +1700,9 @@ ui <- fluidPage(
           div(
             style = "font-size: 11px; color: #666; margin-top: 10px; line-height: 1.5;",
             HTML(
-              "Recipient counts come from the Hope Scholarship annual reports. School-age (5-17 years old) population data comes from the Census Bureau's
+              "Hope Scholarship recipient headcounts come from the Hope Scholarship annual reports. School-age (5-17 years old) population data comes from the Census Bureau's
               Population Estimates Program.
-              Dots show the geolocations of public K-12 schools that have closed 2011-2025."
+              Dots show the geolocations of public PK-12 schools that have closed 2011-2025."
             )
           ),
 
@@ -2074,12 +2075,12 @@ server <- function(input, output, session) {
         `Hope Recip. 22-23`       = hope_2023,
         `Hope Recip. 23-24`       = hope_2024,
         `Hope Recip. 24-25`       = hope_2025,
-        `School-age pop. 22-23`   = school_age_2023,
-        `School-age pop. 23-24`   = school_age_2024,
-        `School-age pop. 24-25`   = school_age_2025,
-        `Hope Recip. per 100, 22-23` = round(rate_2023, 2),
-        `Hope Recip. per 100, 23-24` = round(rate_2024, 2),
-        `Hope Recip. per 100, 24-25` = round(rate_2025, 2),
+        `School-Age Pop. 22-23`   = school_age_2023,
+        `School-Age Pop. 23-24`   = school_age_2024,
+        `School-Age Pop. 24-25`   = school_age_2025,
+        `Hope Recip. per 100 School-Age Children, 22-23` = round(rate_2023, 2),
+        `Hope Recip. per 100 School-Age Children, 23-24` = round(rate_2024, 2),
+        `Hope Recip. per 100 School-Age Children, 24-25` = round(rate_2025, 2),
         `Schools closed`          = n_closed
       ) %>%
       datatable(
