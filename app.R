@@ -1712,7 +1712,7 @@ ui <- fluidPage(
                 style = "flex: 1; min-width: 180px;",
                 radioButtons(
                   "hope_year",
-                  "School year",
+                  "School Year (SY)",
                   choices  = HOPE_YEARS,
                   selected = "2025",
                   inline   = TRUE
@@ -1736,7 +1736,7 @@ ui <- fluidPage(
           hr(),
 
           h4("Counties in view", style = "margin-bottom: 4px;"),
-          p(HTML("click any header to sort the table."),
+          p(HTML("Click any header to sort the table."),
             style = "font-size: 12px; color: #666;"),
           DTOutput("hope_county_table")
         ),
@@ -1875,6 +1875,33 @@ ui <- fluidPage(
     This shows that enrollment is falling faster than the underlying population.",
               style = "font-size: 13px; color: #555; margin-top: 10px;"
             ),
+
+            # The note explained the total-population line but never the
+            # school-age one, which is the more meaningful comparison of the
+            # two and the reason the plot carries three series instead of two.
+            p(
+              HTML(
+                "The plot carries a third line: <strong>school-age population, ages 5-17</strong>,
+                drawn in green and dashed. Total population counts everyone in the county, adults
+                and retirees included, so it can hold steady while the number of children falls.
+                The 5-17 count is the closest available measure of the pool a district actually
+                draws its students from, which makes it the fairer benchmark of the two."
+              ),
+              style = "font-size: 13px; color: #555; margin-top: 10px;"
+            ),
+
+            p(
+              HTML(
+                "So the gap worth reading is between the enrollment line and the
+                <strong>green</strong> one. Where enrollment falls faster than the 5-17
+                population, the district is losing students beyond what the shrinking child
+                population alone would explain. Where the two fall together, the decline looks
+                demographic. Both population series come from the Census Bureau's Population
+                Estimates Program, so they are measured the same way and can be read against
+                each other directly."
+              ),
+              style = "font-size: 13px; color: #555; margin-top: 10px;"
+            )
 
           ),
           plotOutput("did_plot_pop")
@@ -2127,12 +2154,12 @@ server <- function(input, output, session) {
         `Hope Recip. per 100 School-Age Children, 22-23` = round(rate_2023, 2),
         `Hope Recip. per 100 School-Age Children, 23-24` = round(rate_2024, 2),
         `Hope Recip. per 100 School-Age Children, 24-25` = round(rate_2025, 2),
-        `Schools closed`          = n_closed,
+        `Schools Closed`          = n_closed,
         # Spelled out rather than left blank, so an empty cell is never mistaken
         # for missing data. Character, not numeric: every year is 4 digits, so
         # string sorting is still chronological, and "No closure" lands after
         # them all when sorted ascending.
-        `Year of 1st closure`     = ifelse(is.na(first_closure_year),
+        `Year of 1st Closure`     = ifelse(is.na(first_closure_year),
                                            "No closure",
                                            as.character(first_closure_year))
       ) %>%
