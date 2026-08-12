@@ -1356,10 +1356,24 @@ message("Hope tab closure dots: ", nrow(hope_dots), " closed schools plotted at 
 # still respond to the filters; the table deliberately does not, and the table's
 # caption says so.
 hope_closed_by_district <- hope_dots %>%
-  count(District, name = "n_closed")
+  group_by(District) %>%
+  summarise(
+    n_closed = n(),
+    # Earliest closure the county has on record. min() on an all-NA vector
+    # warns and returns Inf, so it is guarded and folded back to NA: a county
+    # with closures but no usable year should read blank, not "Inf".
+    first_closure_year = suppressWarnings(min(close_year, na.rm = TRUE)),
+    .groups = "drop"
+  ) %>%
+  mutate(first_closure_year = ifelse(is.finite(first_closure_year),
+                                     as.integer(first_closure_year),
+                                     NA_integer_))
 
 hope_county_base <- hope_county_base %>%
   left_join(hope_closed_by_district, by = "District") %>%
+  # n_closed fills to 0 because "no closures" is a real count. first_closure_year
+  # stays NA, because a county that never closed a school has no such year and a
+  # 0 there would sort as if it closed one in year zero.
   mutate(n_closed = tidyr::replace_na(n_closed, 0L))
 
 # A closure whose District never matches a shapefile county would be dropped
@@ -2022,7 +2036,10 @@ server <- function(input, output, session) {
         # Fixed across years so the year selector reveals growth, not a rescale.
         limits   = HOPE_LIMITS[[measure_id]],
         labels   = scales::label_number(accuracy = meta$accuracy),
-        name     = meta$legend
+        name     = meta$legend,
+        # order = 1 keeps the colorbar above the dot key once both guides are
+        # stacked at the bottom; without it ggplot orders them arbitrarily.
+        guide    = guide_colorbar(order = 1)
       )
 
     if (nrow(dots) > 0) {
@@ -2037,13 +2054,29 @@ server <- function(input, output, session) {
       # darken instead of hiding, so a cluster is visible as a cluster. The halo
       # is faded harder than the dot: at full opacity it would mask the dots
       # underneath it, which is the same problem one layer up.
+      #
+      # The top layer maps colour to a constant string instead of setting it
+      # outside aes(). That is what puts the dot in a legend: ggplot only builds
+      # a guide for a mapped aesthetic. The halo stays outside aes() and keeps
+      # show.legend = FALSE so it does not earn a second, white key. colour and
+      # fill are separate scales, so this legend sits alongside the choropleth's
+      # rather than fighting it.
       p <- p +
         geom_point(data = dots, aes(x = lon, y = lat),
                    colour = "white", size = 2.3, alpha = 0.40,
                    show.legend = FALSE) +
-        geom_point(data = dots, aes(x = lon, y = lat),
-                   colour = HOPE_DOT_COLOR, size = 1.5, alpha = 0.65,
-                   show.legend = FALSE)
+        geom_point(data = dots, aes(x = lon, y = lat, colour = "closed"),
+                   size = 1.5, alpha = 0.65) +
+        scale_color_manual(
+          name   = NULL,
+          values = c(closed = HOPE_DOT_COLOR),
+          labels = c(closed = sprintf("Closed school in 2011-2025 (n = %d)", nrow(dots)
+                                      )),
+          # The key is drawn bigger and fully opaque: at the size and alpha the
+          # dots use on the map, a legend key is nearly invisible.
+          guide  = guide_legend(order = 2,
+                                override.aes = list(size = 3.2, alpha = 1))
+        )
     }
 
     year_label <- names(HOPE_YEARS)[match(year_id, HOPE_YEARS)]
@@ -2094,7 +2127,14 @@ server <- function(input, output, session) {
         `Hope Recip. per 100 School-Age Children, 22-23` = round(rate_2023, 2),
         `Hope Recip. per 100 School-Age Children, 23-24` = round(rate_2024, 2),
         `Hope Recip. per 100 School-Age Children, 24-25` = round(rate_2025, 2),
-        `Schools closed`          = n_closed
+        `Schools closed`          = n_closed,
+        # Spelled out rather than left blank, so an empty cell is never mistaken
+        # for missing data. Character, not numeric: every year is 4 digits, so
+        # string sorting is still chronological, and "No closure" lands after
+        # them all when sorted ascending.
+        `Year of 1st closure`     = ifelse(is.na(first_closure_year),
+                                           "No closure",
+                                           as.character(first_closure_year))
       ) %>%
       datatable(
         rownames = FALSE,
