@@ -1829,7 +1829,7 @@ ui <- fluidPage(
             
             #  Intro (before example)
             p(
-              "The plot below shows district enrollment alongside county population over time. 
+              "The plot below shows district enrollment alongside county population in gray line and school-age (5-17 years old) population in dashed green line over time. 
     Because these measures are on very different scales, both are indexed to 100 in the first year shown for each district. 
     This allows them to be displayed on the same graph and compared more easily.",
               style = "font-size: 13px;"
@@ -1848,13 +1848,17 @@ ui <- fluidPage(
       <th style='border-bottom: 1px solid #ccc; text-align: left;'>Year</th>
       <th style='border-bottom: 1px solid #ccc; text-align: left;'>School Enrollment</th>
       <th style='border-bottom: 1px solid #ccc; text-align: left;'>Total Population</th>
+      <th style='border-bottom: 1px solid #ccc; text-align: left;'>School-Age Population (5-17)</th>
       <th style='border-bottom: 1px solid #ccc; text-align: left;'>Enrollment Index</th>
       <th style='border-bottom: 1px solid #ccc; text-align: left;'>Population Index</th>
+      <th style='border-bottom: 1px solid #ccc; text-align: left;'>School-Age Population Index</th>
     </tr>
     <tr>
       <td>2015</td>
       <td>2,000</td>
       <td>60,000</td>
+      <td>2,200</td>
+      <td>100</td>
       <td>100</td>
       <td>100</td>
     </tr>
@@ -1862,8 +1866,10 @@ ui <- fluidPage(
       <td>2016</td>
       <td>1,800</td>
       <td>59,000</td>
+      <td>2,100</td>
       <td>90</td>
       <td>98.3</td>
+      <td>95.5</td>
     </tr>
   </table>
   "),
@@ -1871,35 +1877,8 @@ ui <- fluidPage(
             # Explanation of example
             p(
               "In this example, from the year 2015 to 2016, school enrollment declines by 10% (from 2,000 students to 1,800 students, or an enrollment index from 100 to 90), while 
-              population only declines by about 1.7% (from 60,000 people to 59,000 people, or a population index from 100 to 98.3). 
+              population only declines by about 1.7% (from 60,000 people to 59,000 people, or a population index from 100 to 98.3) and school-age population declines by about 4.5% (from 2,200 to 2,100, or a school-age population index from 100 to 95.5). 
     This shows that enrollment is falling faster than the underlying population.",
-              style = "font-size: 13px; color: #555; margin-top: 10px;"
-            ),
-
-            # The note explained the total-population line but never the
-            # school-age one, which is the more meaningful comparison of the
-            # two and the reason the plot carries three series instead of two.
-            p(
-              HTML(
-                "The plot carries a third line: <strong>school-age population, ages 5-17</strong>,
-                drawn in green and dashed. Total population counts everyone in the county, adults
-                and retirees included, so it can hold steady while the number of children falls.
-                The 5-17 count is the closest available measure of the pool a district actually
-                draws its students from, which makes it the fairer benchmark of the two."
-              ),
-              style = "font-size: 13px; color: #555; margin-top: 10px;"
-            ),
-
-            p(
-              HTML(
-                "So the gap worth reading is between the enrollment line and the
-                <strong>green</strong> one. Where enrollment falls faster than the 5-17
-                population, the district is losing students beyond what the shrinking child
-                population alone would explain. Where the two fall together, the decline looks
-                demographic. Both population series come from the Census Bureau's Population
-                Estimates Program, so they are measured the same way and can be read against
-                each other directly."
-              ),
               style = "font-size: 13px; color: #555; margin-top: 10px;"
             )
 
